@@ -1,10 +1,10 @@
 const playBtn = document.getElementById('playBtn');
-const player = document.getElementById('player');
+const status = document.getElementById('status');
 
 let launched = false;
 
 playBtn.addEventListener('click', () => {
   launched = !launched;
   playBtn.textContent = launched ? 'LAUNCHING...' : 'PLAY';
-  player.textContent = launched ? 'Steve • entering METAcraft VR' : 'Steve';
+  status.textContent = launched ? 'Статус: запуск METAcraft VR...' : 'Статус: готово';
 });

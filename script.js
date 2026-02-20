@@ -1,15 +1,10 @@
-const launchBtn = document.getElementById('launchBtn');
-const status = document.getElementById('status');
+const playBtn = document.getElementById('playBtn');
+const player = document.getElementById('player');
 
-const states = [
-  'Статус: подключение VR-шлема...',
-  'Статус: синхронизация мира METAcraft...',
-  'Статус: телепорт в блоковый мир выполнен!',
-];
+let launched = false;
 
-let step = 0;
-
-launchBtn.addEventListener('click', () => {
-  status.textContent = states[step % states.length];
-  step += 1;
+playBtn.addEventListener('click', () => {
+  launched = !launched;
+  playBtn.textContent = launched ? 'LAUNCHING...' : 'PLAY';
+  player.textContent = launched ? 'Steve • entering METAcraft VR' : 'Steve';
 });

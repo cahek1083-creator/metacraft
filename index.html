@@ -3,18 +3,54 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>METAcraft Launcher</title>
+    <title>METAcraft Launcher Mock</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="launcher" aria-label="METAcraft launcher">
-      <p class="brand">MINECRAFT VR EXPERIENCE</p>
-      <h1 class="title">METAcraft</h1>
-      <p class="subtitle">Войди в кубический мир в VR: строй, исследуй и выживай.</p>
+    <div class="launcher">
+      <aside class="sidebar">
+        <div class="profile">
+          <div class="avatar">S</div>
+          <div>
+            <p class="name">Steve</p>
+            <p class="status-online">● Connected</p>
+          </div>
+        </div>
 
-      <button id="launchBtn" class="launch-btn" type="button">Запустить VR</button>
-      <p id="status" class="status" aria-live="polite">Статус: готов к запуску.</p>
-    </main>
+        <nav class="left-nav">
+          <a href="#" class="left-item">News</a>
+          <a href="#" class="left-item active">Minecraft Java Edition</a>
+          <a href="#" class="left-item">Settings</a>
+        </nav>
+      </aside>
+
+      <section class="main">
+        <header class="topbar">
+          <p class="edition">MINECRAFT: JAVA EDITION</p>
+          <nav class="tabs">
+            <a href="#" class="tab active">Play</a>
+            <a href="#" class="tab">Installations</a>
+            <a href="#" class="tab">Skins</a>
+            <a href="#" class="tab">Patch notes</a>
+          </nav>
+        </header>
+
+        <div class="hero">
+          <div class="hero-logo">MINECRAFT<br /><span>JAVA EDITION</span></div>
+        </div>
+
+        <footer class="bottom">
+          <div class="release">
+            <p class="release-title">Latest release</p>
+            <p class="release-version">1.14.4</p>
+          </div>
+
+          <button id="playBtn" class="play-btn" type="button">PLAY</button>
+
+          <p id="player" class="player">Steve</p>
+        </footer>
+      </section>
+    </div>
 
     <script src="script.js"></script>
   </body>

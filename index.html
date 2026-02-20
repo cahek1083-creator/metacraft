@@ -3,16 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Demo Web Page</title>
+    <title>Minecraft Style Page</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="container">
-      <h1>Привет! Это web‑страница</h1>
-      <p>
-        Я сделал простую адаптивную страницу с кнопкой и небольшим интерактивом.
+    <header class="hero">
+      <h1>METAcraft</h1>
+      <p>Почти как Minecraft: блоки, пиксели и дух выживания.</p>
+    </header>
+
+    <main class="panel" aria-label="Главная панель">
+      <h2>Добро пожаловать в мир блоков</h2>
+      <p class="subtitle">
+        Добывай ресурсы, строй базу и исследуй пиксельный мир.
       </p>
-      <button id="actionBtn" type="button">Нажми меня</button>
+
+      <ul class="features">
+        <li>⛏️ Добыча руды</li>
+        <li>🧱 Строительство из блоков</li>
+        <li>🌙 Выживание ночью</li>
+      </ul>
+
+      <button id="actionBtn" type="button">Начать выживание</button>
       <p id="message" aria-live="polite"></p>
     </main>
 

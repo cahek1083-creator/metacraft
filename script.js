@@ -1,10 +1,18 @@
 const playBtn = document.getElementById('playBtn');
-const status = document.getElementById('status');
+const downloadBtn = document.getElementById('downloadBtn');
+const player = document.getElementById('player');
 
 let launched = false;
+let downloaded = false;
 
 playBtn.addEventListener('click', () => {
   launched = !launched;
   playBtn.textContent = launched ? 'LAUNCHING...' : 'PLAY';
-  status.textContent = launched ? 'Статус: запуск METAcraft VR...' : 'Статус: готово';
+  player.textContent = launched ? 'Steve • entering METAcraft VR' : 'Steve';
+});
+
+downloadBtn.addEventListener('click', () => {
+  downloaded = !downloaded;
+  downloadBtn.textContent = downloaded ? 'СКАЧАНО' : 'СКАЧАТЬ';
+  player.textContent = downloaded ? 'Steve • METAcraft files ready' : 'Steve';
 });

@@ -3,29 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Minecraft Style Page</title>
+    <title>METAcraft Launcher</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <h1>METAcraft</h1>
-      <p>Почти как Minecraft: блоки, пиксели и дух выживания.</p>
-    </header>
+    <main class="launcher" aria-label="METAcraft launcher">
+      <p class="brand">MINECRAFT VR EXPERIENCE</p>
+      <h1 class="title">METAcraft</h1>
+      <p class="subtitle">Войди в кубический мир в VR: строй, исследуй и выживай.</p>
 
-    <main class="panel" aria-label="Главная панель">
-      <h2>Добро пожаловать в мир блоков</h2>
-      <p class="subtitle">
-        Добывай ресурсы, строй базу и исследуй пиксельный мир.
-      </p>
-
-      <ul class="features">
-        <li>⛏️ Добыча руды</li>
-        <li>🧱 Строительство из блоков</li>
-        <li>🌙 Выживание ночью</li>
-      </ul>
-
-      <button id="actionBtn" type="button">Начать выживание</button>
-      <p id="message" aria-live="polite"></p>
+      <button id="launchBtn" class="launch-btn" type="button">Запустить VR</button>
+      <p id="status" class="status" aria-live="polite">Статус: готов к запуску.</p>
     </main>
 
     <script src="script.js"></script>

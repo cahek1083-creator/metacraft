@@ -1,17 +1,15 @@
-const actionBtn = document.getElementById('actionBtn');
-const message = document.getElementById('message');
+const launchBtn = document.getElementById('launchBtn');
+const status = document.getElementById('status');
 
-const tips = [
-  'Ты собрал дерево. Верстак разблокирован!',
-  'Каменная кирка готова — время копать глубже.',
-  'Наступает ночь: зажги факелы и укрепи базу.',
-  'Найдено железо! Можно крафтить броню.',
+const states = [
+  'Статус: подключение VR-шлема...',
+  'Статус: синхронизация мира METAcraft...',
+  'Статус: телепорт в блоковый мир выполнен!',
 ];
 
-let progress = 0;
+let step = 0;
 
-actionBtn.addEventListener('click', () => {
-  const tip = tips[progress % tips.length];
-  progress += 1;
-  message.textContent = `День ${progress}: ${tip}`;
+launchBtn.addEventListener('click', () => {
+  status.textContent = states[step % states.length];
+  step += 1;
 });

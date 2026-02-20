@@ -73,11 +73,26 @@ body {
   text-transform: none;
   font-size: 18px;
   margin-bottom: 8px;
+  border: 1px solid transparent;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.left-item:hover {
+  background: #21242b;
+  border-color: #31343d;
+}
+
+.left-item:active {
+  transform: translateY(1px);
 }
 
 .left-item.active {
-  background: #20232a;
+  background: linear-gradient(to bottom, #2a2e36, #1f232a);
   border-left: 3px solid #7abf43;
+  border-top: 1px solid #404550;
+  border-right: 1px solid #13161b;
+  border-bottom: 1px solid #13161b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   padding-left: 7px;
   font-weight: 700;
 }
@@ -102,21 +117,40 @@ body {
 
 .tabs {
   display: flex;
-  gap: 26px;
+  gap: 10px;
   margin-top: 8px;
+  padding-bottom: 6px;
 }
 
 .tab {
   color: #d4d8df;
   text-decoration: none;
-  font-size: 18px;
-  padding-bottom: 10px;
-  border-bottom: 3px solid transparent;
+  font-size: 17px;
+  padding: 8px 14px;
+  border-radius: 3px;
+  border-top: 1px solid #40444d;
+  border-left: 1px solid #40444d;
+  border-right: 1px solid #14161b;
+  border-bottom: 1px solid #14161b;
+  background: linear-gradient(to bottom, #303540, #242830);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.tab:hover {
+  filter: brightness(1.06);
+}
+
+.tab:active {
+  transform: translateY(1px);
 }
 
 .tab.active {
   color: #7cdd57;
-  border-bottom-color: #7cdd57;
+  background: linear-gradient(to bottom, #363c47, #2a2f38);
+  box-shadow:
+    inset 0 -3px 0 #7cdd57,
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   font-weight: 700;
 }
 
@@ -192,23 +226,38 @@ body {
 
 .play-btn {
   min-width: 260px;
-  border: 3px solid #0a1109;
-  background: linear-gradient(to bottom, #25b45f, #159447);
+  border: 0;
+  border-top: 2px solid #58d98d;
+  border-left: 2px solid #58d98d;
+  border-right: 2px solid #0d5f2f;
+  border-bottom: 2px solid #0d5f2f;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 42%),
+    linear-gradient(to bottom, #2cd26f, #159447 65%, #138641);
   color: #fff;
   font-weight: 800;
   font-size: 38px;
   letter-spacing: 2px;
-  padding: 8px 20px;
+  padding: 10px 24px;
   cursor: pointer;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    0 3px 8px rgba(0, 0, 0, 0.4);
+  transition: filter 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .play-btn:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.07) saturate(1.05);
 }
 
 .play-btn:active {
   transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22),
+    0 2px 5px rgba(0, 0, 0, 0.35);
 }
 
 .player {

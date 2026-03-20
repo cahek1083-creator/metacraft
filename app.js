@@ -9,6 +9,7 @@ const ui = {
 
   screenMain: document.getElementById('screen-main'),
   screenSingle: document.getElementById('screen-singleplayer'),
+  screenMulti: document.getElementById('screen-multiplayer'),
   screenCreate: document.getElementById('screen-create-world'),
   screenOptions: document.getElementById('options-panel'),
 
@@ -34,6 +35,11 @@ const ui = {
 
   btnConfirmCreate: document.getElementById('btn-confirm-create'),
   btnCreateBack: document.getElementById('btn-create-back'),
+
+  mpName: document.getElementById('mp-name'),
+  mpRoom: document.getElementById('mp-room'),
+  btnJoinMp: document.getElementById('btn-join-mp'),
+  btnMpBack: document.getElementById('btn-mp-back'),
 };
 
 const state = {
@@ -45,6 +51,15 @@ const state = {
   startSession: null,
   stopSession: null,
   setSpawn: null,
+  multiplayer: {
+    socket: null,
+    connected: false,
+    room: null,
+    playerName: null,
+    remotePlayers: new Map(),
+    sendPosition: null,
+    clearRemotes: null,
+  },
 };
 
 function loadWorlds() {
@@ -74,6 +89,7 @@ function showScreen(name) {
   const screens = {
     main: ui.screenMain,
     single: ui.screenSingle,
+    multi: ui.screenMulti,
     create: ui.screenCreate,
     options: ui.screenOptions,
   };
@@ -112,6 +128,7 @@ ui.btnSingle.addEventListener('click', () => {
 });
 
 ui.btnSingleBack.addEventListener('click', () => showScreen('main'));
+ui.btnMpBack.addEventListener('click', () => showScreen('main'));
 ui.btnCreateWorld.addEventListener('click', () => showScreen('create'));
 ui.btnCreateBack.addEventListener('click', () => showScreen('single'));
 
@@ -142,9 +159,40 @@ ui.btnDeleteWorld.addEventListener('click', () => {
 
 ui.btnOptions.addEventListener('click', () => showScreen('options'));
 ui.btnCloseOptions.addEventListener('click', () => showScreen('main'));
-ui.btnMulti.addEventListener('click', () => alert('Multiplayer пока не реализован в этом прототипе.'));
+ui.btnMulti.addEventListener('click', () => showScreen('multi'));
 ui.btnRealms.addEventListener('click', () => alert('Minecraft Realms пока не реализован в этом прототипе.'));
 ui.btnQuit.addEventListener('click', () => alert('В браузере закрой вкладку вручную.'));
+
+ui.btnJoinMp.addEventListener('click', async () => {
+  const name = (ui.mpName.value || '').trim() || 'Player';
+  const room = (ui.mpRoom.value || '').trim() || 'default';
+
+  ui.btnJoinMp.disabled = true;
+  ui.btnJoinMp.textContent = 'Connecting...';
+  try {
+    await connectMultiplayer(name, room);
+    const world = state.worlds[0] ?? {
+      id: 'mp-local',
+      name: `MP: ${room}`,
+      spawn: { x: 0, y: 18, z: 0 },
+      gamemode: 'creative',
+      seed: '',
+    };
+    if (!state.engineReady) {
+      await initEngine();
+      state.engineReady = true;
+    }
+    state.setSpawn?.(world.spawn);
+    ui.activeWorld.textContent = `${world.name} (MP)`;
+    state.startSession?.();
+  } catch (error) {
+    console.error(error);
+    alert('Не удалось подключиться к localhost multiplayer. Запусти: npm install && npm run serve');
+  } finally {
+    ui.btnJoinMp.disabled = false;
+    ui.btnJoinMp.textContent = 'Join World';
+  }
+});
 
 ui.btnPlayWorld.addEventListener('click', async () => {
   const world = state.worlds.find((w) => w.id === state.selectedWorldId);
@@ -169,6 +217,70 @@ ui.btnPlayWorld.addEventListener('click', async () => {
     ui.btnPlayWorld.textContent = 'Play Selected World';
   }
 });
+
+async function connectMultiplayer(playerName, room) {
+  if (state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN) {
+    state.multiplayer.playerName = playerName;
+    state.multiplayer.room = room;
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    const socket = new WebSocket('ws://localhost:8080');
+    let settled = false;
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+    const pass = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    socket.addEventListener('open', () => {
+      state.multiplayer.socket = socket;
+      state.multiplayer.connected = true;
+      state.multiplayer.playerName = playerName;
+      state.multiplayer.room = room;
+      socket.send(JSON.stringify({ type: 'join', room, name: playerName }));
+      pass();
+    });
+
+    socket.addEventListener('message', (event) => {
+      let msg = null;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      if (msg.type === 'peers' && state.multiplayer.clearRemotes) {
+        state.multiplayer.clearRemotes(msg.players || []);
+      }
+      if (msg.type === 'player_move' && state.multiplayer.remotePlayers.has(msg.id)) {
+        const mesh = state.multiplayer.remotePlayers.get(msg.id);
+        mesh.position.set(msg.pos.x, msg.pos.y, msg.pos.z);
+      }
+      if (msg.type === 'player_join' && state.multiplayer.clearRemotes) {
+        state.multiplayer.clearRemotes([msg.player]);
+      }
+      if (msg.type === 'player_leave' && state.multiplayer.remotePlayers.has(msg.id)) {
+        const mesh = state.multiplayer.remotePlayers.get(msg.id);
+        mesh.parent?.remove(mesh);
+        state.multiplayer.remotePlayers.delete(msg.id);
+      }
+    });
+
+    socket.addEventListener('close', () => {
+      state.multiplayer.connected = false;
+      state.multiplayer.socket = null;
+    });
+    socket.addEventListener('error', () => fail(new Error('Multiplayer socket error')));
+    setTimeout(() => fail(new Error('Multiplayer timeout')), 3500);
+  });
+}
 
 async function initEngine() {
   const [THREE, { PointerLockControls }] = await Promise.all([
@@ -195,6 +307,28 @@ async function initEngine() {
   const sun = new THREE.DirectionalLight(0xffffff, 1.0);
   sun.position.set(44, 80, 35);
   scene.add(sun);
+
+  const remoteGeom = new THREE.BoxGeometry(0.8, 1.8, 0.8);
+  const remoteMat = new THREE.MeshLambertMaterial({ color: 0xffcc33 });
+  const ensureRemote = (player) => {
+    if (!player?.id) return null;
+    if (state.multiplayer.remotePlayers.has(player.id)) return state.multiplayer.remotePlayers.get(player.id);
+    const mesh = new THREE.Mesh(remoteGeom, remoteMat);
+    mesh.position.set(player.pos?.x ?? 0, player.pos?.y ?? 18, player.pos?.z ?? 0);
+    scene.add(mesh);
+    state.multiplayer.remotePlayers.set(player.id, mesh);
+    return mesh;
+  };
+  state.multiplayer.clearRemotes = (players) => {
+    const ids = new Set(players.map((p) => p.id));
+    for (const [id, mesh] of state.multiplayer.remotePlayers.entries()) {
+      if (!ids.has(id)) {
+        scene.remove(mesh);
+        state.multiplayer.remotePlayers.delete(id);
+      }
+    }
+    for (const p of players) ensureRemote(p);
+  };
 
   const BLOCKS = [
     { id: 'grass', label: 'Grass', color: 0x66bb4f },
@@ -339,10 +473,12 @@ async function initEngine() {
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
   const clock = new THREE.Clock();
+  let syncElapsed = 0;
 
   const animate = () => {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.05);
+    syncElapsed += dt;
     if (controls.isLocked) {
       velocity.set(0, 0, 0);
       const speed = 11 * state.sensitivity;
@@ -353,6 +489,14 @@ async function initEngine() {
       controls.moveRight(direction.x * speed * dt);
       controls.moveForward(direction.z * speed * dt);
       camera.position.y += direction.y * speed * dt;
+    }
+    if (state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN && syncElapsed > 0.08) {
+      syncElapsed = 0;
+      state.multiplayer.socket.send(JSON.stringify({
+        type: 'move',
+        room: state.multiplayer.room,
+        pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      }));
     }
     renderer.render(scene, camera);
   };

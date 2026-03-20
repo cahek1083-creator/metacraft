@@ -54,6 +54,17 @@
         </div>
       </section>
 
+      <section id="screen-multiplayer" class="screen panel hidden">
+        <h2>Multiplayer (localhost)</h2>
+        <label>Player Name <input id="mp-name" type="text" maxlength="16" value="Player" /></label>
+        <label>Room <input id="mp-room" type="text" maxlength="24" value="default" /></label>
+        <p class="muted">Server: ws://localhost:8080</p>
+        <div class="menu-row">
+          <button id="btn-join-mp" type="button">Join World</button>
+          <button id="btn-mp-back" type="button">Cancel</button>
+        </div>
+      </section>
+
       <section id="screen-create-world" class="screen panel hidden">
         <h2>Create New World</h2>
         <label>World Name <input id="world-name" type="text" maxlength="32" value="New World" /></label>

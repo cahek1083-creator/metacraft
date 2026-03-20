@@ -284,18 +284,32 @@ async function connectMultiplayer(playerName, room) {
 
 async function initEngine() {
   const sources = [
-    'https://unpkg.com/three@0.164.1',
-    'https://cdn.jsdelivr.net/npm/three@0.164.1',
+    {
+      three: 'https://esm.sh/three@0.164.1',
+      controls: 'https://esm.sh/three@0.164.1/examples/jsm/controls/PointerLockControls.js',
+    },
+    {
+      three: 'https://unpkg.com/three@0.164.1/build/three.module.js?module',
+      controls: 'https://unpkg.com/three@0.164.1/examples/jsm/controls/PointerLockControls.js?module',
+    },
+    {
+      three: 'https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js',
+      controls: 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/PointerLockControls.js',
+    },
+    {
+      three: 'https://ga.jspm.io/npm:three@0.164.1/build/three.module.js',
+      controls: 'https://ga.jspm.io/npm:three@0.164.1/examples/jsm/controls/PointerLockControls.js',
+    },
   ];
 
   let THREE;
   let PointerLockControls;
   let lastError = null;
-  for (const base of sources) {
+  for (const source of sources) {
     try {
       const [threeMod, controlsMod] = await Promise.all([
-        import(`${base}/build/three.module.js`),
-        import(`${base}/examples/jsm/controls/PointerLockControls.js`),
+        import(source.three),
+        import(source.controls),
       ]);
       THREE = threeMod;
       PointerLockControls = controlsMod.PointerLockControls;

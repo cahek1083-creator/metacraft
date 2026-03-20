@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Minecraft 1.12.2 Menu + Scene (Web)</title>
+  <title>Minecraft 1.12.2 Menu + World Select (Web)</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <canvas id="game" aria-label="Игровая сцена"></canvas>
-
   <div class="crosshair hidden" id="crosshair" aria-hidden="true">+</div>
 
   <aside id="hud" class="hidden" aria-live="polite">
+    <p><strong>World:</strong> <span id="active-world">-</span></p>
     <p><strong>Block:</strong> <span id="active-block">Grass</span></p>
-    <p>1-0: смена блока • ЛКМ: ломать • ПКМ: ставить • ESC: меню</p>
+    <p>1-0: смена блока • ЛКМ: ломать • ПКМ: ставить • ESC: выйти в меню</p>
   </aside>
 
   <div id="menu-overlay">
@@ -25,23 +25,53 @@
 
     <main class="menu-wrap">
       <header class="brand">
-        <h1 class="logo" aria-label="Minecraft">MINECRAFT</h1>
+        <h1 class="logo">MINECRAFT</h1>
         <p class="edition">Java Edition</p>
-        <p class="splash">Now with working buttons!</p>
+        <p class="splash">Now with world select!</p>
       </header>
 
-      <section class="menu" aria-label="Главное меню Minecraft 1.12.2">
+      <section id="screen-main" class="screen menu">
         <button id="btn-singleplayer" type="button">Singleplayer</button>
         <button id="btn-multiplayer" type="button">Multiplayer</button>
         <button id="btn-realms" type="button">Minecraft Realms</button>
-
         <div class="menu-row">
           <button id="btn-options" type="button">Options...</button>
           <button id="btn-quit" type="button">Quit Game</button>
         </div>
       </section>
 
-      <section id="options-panel" class="options hidden" aria-label="Options panel">
+      <section id="screen-singleplayer" class="screen panel hidden">
+        <h2>Select World</h2>
+        <ul id="world-list" class="world-list"></ul>
+        <p id="world-empty" class="muted">No worlds yet. Create one.</p>
+        <div class="menu-row">
+          <button id="btn-play-world" type="button">Play Selected World</button>
+          <button id="btn-create-world" type="button">Create New World</button>
+        </div>
+        <div class="menu-row">
+          <button id="btn-delete-world" type="button">Delete</button>
+          <button id="btn-single-back" type="button">Cancel</button>
+        </div>
+      </section>
+
+      <section id="screen-create-world" class="screen panel hidden">
+        <h2>Create New World</h2>
+        <label>World Name <input id="world-name" type="text" maxlength="32" value="New World" /></label>
+        <label>Seed <input id="world-seed" type="text" maxlength="32" placeholder="Random" /></label>
+        <label>Game Mode
+          <select id="world-gamemode">
+            <option value="survival">Survival</option>
+            <option value="creative" selected>Creative</option>
+          </select>
+        </label>
+        <div class="menu-row">
+          <button id="btn-confirm-create" type="button">Create New World</button>
+          <button id="btn-create-back" type="button">Cancel</button>
+        </div>
+      </section>
+
+      <section id="options-panel" class="screen panel hidden">
+        <h2>Options</h2>
         <label>
           Mouse sensitivity
           <input id="sensitivity" type="range" min="0.2" max="2" value="1" step="0.1" />

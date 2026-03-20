@@ -1,60 +1,172 @@
+const STORAGE_KEY = 'webcraft_worlds_v1';
+
 const ui = {
   menuOverlay: document.getElementById('menu-overlay'),
-  optionsPanel: document.getElementById('options-panel'),
   hud: document.getElementById('hud'),
   crosshair: document.getElementById('crosshair'),
+  activeWorld: document.getElementById('active-world'),
   activeBlock: document.getElementById('active-block'),
+
+  screenMain: document.getElementById('screen-main'),
+  screenSingle: document.getElementById('screen-singleplayer'),
+  screenCreate: document.getElementById('screen-create-world'),
+  screenOptions: document.getElementById('options-panel'),
+
+  worldList: document.getElementById('world-list'),
+  worldEmpty: document.getElementById('world-empty'),
+  worldName: document.getElementById('world-name'),
+  worldSeed: document.getElementById('world-seed'),
+  worldGamemode: document.getElementById('world-gamemode'),
+
   sensitivity: document.getElementById('sensitivity'),
+
   btnSingle: document.getElementById('btn-singleplayer'),
   btnMulti: document.getElementById('btn-multiplayer'),
   btnRealms: document.getElementById('btn-realms'),
   btnOptions: document.getElementById('btn-options'),
-  btnCloseOptions: document.getElementById('btn-close-options'),
   btnQuit: document.getElementById('btn-quit'),
+  btnCloseOptions: document.getElementById('btn-close-options'),
+
+  btnPlayWorld: document.getElementById('btn-play-world'),
+  btnCreateWorld: document.getElementById('btn-create-world'),
+  btnDeleteWorld: document.getElementById('btn-delete-world'),
+  btnSingleBack: document.getElementById('btn-single-back'),
+
+  btnConfirmCreate: document.getElementById('btn-confirm-create'),
+  btnCreateBack: document.getElementById('btn-create-back'),
 };
 
 const state = {
   sensitivity: 1,
   running: false,
   engineReady: false,
-  controls: null,
+  worlds: loadWorlds(),
+  selectedWorldId: null,
   startSession: null,
   stopSession: null,
+  setSpawn: null,
 };
+
+function loadWorlds() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWorlds() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.worlds));
+  } catch (error) {
+    console.warn('Failed to save worlds to localStorage:', error);
+  }
+}
+
+function createId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `world-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function showScreen(name) {
+  const screens = {
+    main: ui.screenMain,
+    single: ui.screenSingle,
+    create: ui.screenCreate,
+    options: ui.screenOptions,
+  };
+  Object.values(screens).forEach((el) => el.classList.add('hidden'));
+  screens[name].classList.remove('hidden');
+}
+
+function renderWorldList() {
+  ui.worldList.innerHTML = '';
+  ui.worldEmpty.classList.toggle('hidden', state.worlds.length !== 0);
+
+  for (const world of state.worlds) {
+    const li = document.createElement('li');
+    li.dataset.id = world.id;
+    li.innerHTML = `<strong>${world.name}</strong><br><small>${world.gamemode} • seed: ${world.seed || 'random'}</small>`;
+    if (world.id === state.selectedWorldId) li.classList.add('selected');
+    li.addEventListener('click', () => {
+      state.selectedWorldId = world.id;
+      renderWorldList();
+    });
+    ui.worldList.appendChild(li);
+  }
+
+  ui.btnPlayWorld.disabled = !state.selectedWorldId;
+  ui.btnDeleteWorld.disabled = !state.selectedWorldId;
+}
 
 ui.sensitivity.addEventListener('input', () => {
   state.sensitivity = Number(ui.sensitivity.value);
 });
 
-ui.btnOptions.addEventListener('click', () => ui.optionsPanel.classList.toggle('hidden'));
-ui.btnCloseOptions.addEventListener('click', () => ui.optionsPanel.classList.add('hidden'));
-ui.btnMulti.addEventListener('click', () => alert('Multiplayer пока не реализован в этом веб-прототипе.'));
-ui.btnRealms.addEventListener('click', () => alert('Realms пока не реализован в этом веб-прототипе.'));
-
-ui.btnQuit.addEventListener('click', () => {
-  if (state.running && state.stopSession) {
-    state.stopSession();
-    return;
-  }
-  alert('В веб-версии кнопка Quit возвращает в меню, закрытие вкладки — вручную.');
+ui.btnSingle.addEventListener('click', () => {
+  showScreen('single');
+  if (!state.selectedWorldId && state.worlds[0]) state.selectedWorldId = state.worlds[0].id;
+  renderWorldList();
 });
 
-ui.btnSingle.addEventListener('click', async () => {
-  ui.btnSingle.disabled = true;
-  ui.btnSingle.textContent = state.engineReady ? 'Loading world...' : 'Preparing engine...';
+ui.btnSingleBack.addEventListener('click', () => showScreen('main'));
+ui.btnCreateWorld.addEventListener('click', () => showScreen('create'));
+ui.btnCreateBack.addEventListener('click', () => showScreen('single'));
+
+ui.btnConfirmCreate.addEventListener('click', () => {
+  const world = {
+    id: createId(),
+    name: ui.worldName.value.trim() || 'New World',
+    seed: ui.worldSeed.value.trim(),
+    gamemode: ui.worldGamemode.value,
+    spawn: { x: 0, y: 18, z: 0 },
+  };
+  state.worlds.unshift(world);
+  state.selectedWorldId = world.id;
+  saveWorlds();
+  showScreen('single');
+  renderWorldList();
+});
+
+ui.btnDeleteWorld.addEventListener('click', () => {
+  if (!state.selectedWorldId) return;
+  const yes = confirm('Delete selected world?');
+  if (!yes) return;
+  state.worlds = state.worlds.filter((w) => w.id !== state.selectedWorldId);
+  state.selectedWorldId = state.worlds[0]?.id ?? null;
+  saveWorlds();
+  renderWorldList();
+});
+
+ui.btnOptions.addEventListener('click', () => showScreen('options'));
+ui.btnCloseOptions.addEventListener('click', () => showScreen('main'));
+ui.btnMulti.addEventListener('click', () => alert('Multiplayer пока не реализован в этом прототипе.'));
+ui.btnRealms.addEventListener('click', () => alert('Minecraft Realms пока не реализован в этом прототипе.'));
+ui.btnQuit.addEventListener('click', () => alert('В браузере закрой вкладку вручную.'));
+
+ui.btnPlayWorld.addEventListener('click', async () => {
+  const world = state.worlds.find((w) => w.id === state.selectedWorldId);
+  if (!world) return;
+
+  ui.btnPlayWorld.disabled = true;
+  ui.btnPlayWorld.textContent = state.engineReady ? 'Loading world...' : 'Preparing engine...';
 
   try {
     if (!state.engineReady) {
       await initEngine();
       state.engineReady = true;
     }
+    state.setSpawn?.(world.spawn);
+    ui.activeWorld.textContent = world.name;
     state.startSession?.();
   } catch (error) {
     console.error(error);
-    alert('Не удалось запустить 3D-сцену. Проверь доступ к сети/CDN и открой через http://, а не file://');
+    alert('Не удалось запустить 3D-сцену. Открой через http:// и проверь доступ к CDN.');
   } finally {
-    ui.btnSingle.disabled = false;
-    ui.btnSingle.textContent = 'Singleplayer';
+    ui.btnPlayWorld.disabled = false;
+    ui.btnPlayWorld.textContent = 'Play Selected World';
   }
 });
 
@@ -78,7 +190,6 @@ async function initEngine() {
 
   const controls = new PointerLockControls(camera, document.body);
   scene.add(controls.getObject());
-  state.controls = controls;
 
   scene.add(new THREE.HemisphereLight(0xdaf0ff, 0x5b704a, 0.85));
   const sun = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -98,20 +209,11 @@ async function initEngine() {
     { id: 'bricks', label: 'Bricks', color: 0x994a3f },
   ];
 
-  const materials = Object.fromEntries(BLOCKS.map((b) => {
-    const mat = new THREE.MeshLambertMaterial({
-      color: b.color,
-      transparent: Boolean(b.transparent),
-      opacity: b.opacity ?? 1,
-    });
-    return [b.id, mat];
-  }));
-
+  const materials = Object.fromEntries(BLOCKS.map((b) => [b.id, new THREE.MeshLambertMaterial({ color: b.color, transparent: Boolean(b.transparent), opacity: b.opacity ?? 1 })]));
   const blockGeom = new THREE.BoxGeometry(1, 1, 1);
   const blocks = new Map();
 
   const key = (x, y, z) => `${x},${y},${z}`;
-
   const addBlock = (x, y, z, blockId) => {
     const k = key(x, y, z);
     if (blocks.has(k)) return;
@@ -120,13 +222,11 @@ async function initEngine() {
     scene.add(mesh);
     blocks.set(k, mesh);
   };
-
   const removeBlock = (x, y, z) => {
-    const k = key(x, y, z);
-    const mesh = blocks.get(k);
+    const mesh = blocks.get(key(x, y, z));
     if (!mesh) return;
     scene.remove(mesh);
-    blocks.delete(k);
+    blocks.delete(key(x, y, z));
   };
 
   const terrainHeight = (x, z) => Math.floor(Math.sin(x * 0.12) * 3 + Math.cos(z * 0.09) * 4 + Math.sin((x + z) * 0.04) * 3);
@@ -185,8 +285,12 @@ async function initEngine() {
     const base = terrainHeight(cx, cz) + 1;
     const radius = 3;
     const height = 14;
-    for (let y = 0; y < height; y++) for (let x = -radius; x <= radius; x++) for (let z = -radius; z <= radius; z++) {
-      if (Math.abs(x) === radius || Math.abs(z) === radius) addBlock(cx + x, base + y, cz + z, 'stone');
+    for (let y = 0; y < height; y++) {
+      for (let x = -radius; x <= radius; x++) {
+        for (let z = -radius; z <= radius; z++) {
+          if (Math.abs(x) === radius || Math.abs(z) === radius) addBlock(cx + x, base + y, cz + z, 'stone');
+        }
+      }
     }
     for (let x = -radius; x <= radius; x++) for (let z = -radius; z <= radius; z++) addBlock(cx + x, base + height, cz + z, 'planks');
   };
@@ -200,13 +304,9 @@ async function initEngine() {
   const center = new THREE.Vector2(0, 0);
   const getTarget = () => {
     raycaster.setFromCamera(center, camera);
-    const hits = raycaster.intersectObjects(Array.from(blocks.values()), false);
-    const hit = hits[0];
+    const hit = raycaster.intersectObjects(Array.from(blocks.values()), false)[0];
     if (!hit || hit.distance > 7) return null;
-    return {
-      removeAt: hit.object.position.clone().round(),
-      placeAt: hit.object.position.clone().add(hit.face.normal).round(),
-    };
+    return { removeAt: hit.object.position.clone().round(), placeAt: hit.object.position.clone().add(hit.face.normal).round() };
   };
 
   let activeBlockIndex = 0;
@@ -219,6 +319,7 @@ async function initEngine() {
   const pressed = new Set();
   document.addEventListener('keydown', (e) => {
     pressed.add(e.code);
+    if (e.code === 'Escape' && state.running) state.stopSession?.();
     if (e.code.startsWith('Digit')) {
       const n = Number(e.code.replace('Digit', ''));
       setActiveBlock(n === 0 ? 9 : n - 1);
@@ -235,13 +336,6 @@ async function initEngine() {
   });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  controls.addEventListener('unlock', () => {
-    if (!state.running) return;
-    ui.menuOverlay.classList.remove('hidden');
-    ui.hud.classList.add('hidden');
-    ui.crosshair.classList.add('hidden');
-  });
-
   const velocity = new THREE.Vector3();
   const direction = new THREE.Vector3();
   const clock = new THREE.Clock();
@@ -249,7 +343,6 @@ async function initEngine() {
   const animate = () => {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.05);
-
     if (controls.isLocked) {
       velocity.set(0, 0, 0);
       const speed = 11 * state.sensitivity;
@@ -257,18 +350,12 @@ async function initEngine() {
       direction.x = Number(pressed.has('KeyD')) - Number(pressed.has('KeyA'));
       direction.y = Number(pressed.has('Space')) - Number(pressed.has('ShiftLeft') || pressed.has('ShiftRight'));
       if (direction.lengthSq() > 0) direction.normalize();
-
-      velocity.x = direction.x * speed * dt;
-      velocity.z = direction.z * speed * dt;
-      velocity.y = direction.y * speed * dt;
-      controls.moveRight(velocity.x);
-      controls.moveForward(velocity.z);
-      camera.position.y += velocity.y;
+      controls.moveRight(direction.x * speed * dt);
+      controls.moveForward(direction.z * speed * dt);
+      camera.position.y += direction.y * speed * dt;
     }
-
     renderer.render(scene, camera);
   };
-
   animate();
 
   window.addEventListener('resize', () => {
@@ -277,9 +364,12 @@ async function initEngine() {
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 
+  state.setSpawn = (spawn) => {
+    camera.position.set(spawn?.x ?? 0, spawn?.y ?? 18, spawn?.z ?? 0);
+  };
+
   state.startSession = () => {
     state.running = true;
-    ui.optionsPanel.classList.add('hidden');
     ui.menuOverlay.classList.add('hidden');
     ui.hud.classList.remove('hidden');
     ui.crosshair.classList.remove('hidden');
@@ -292,5 +382,9 @@ async function initEngine() {
     ui.menuOverlay.classList.remove('hidden');
     ui.hud.classList.add('hidden');
     ui.crosshair.classList.add('hidden');
+    showScreen('main');
   };
 }
+
+showScreen('main');
+renderWorldList();

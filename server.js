@@ -22,6 +22,15 @@ function roomOf(name) {
 
 const server = http.createServer((req, res) => {
   const pathname = new URL(req.url, `http://localhost:${PORT}`).pathname;
+  if (pathname === '/api/worlds') {
+    const worlds = [...rooms.entries()].map(([room, players]) => ({
+      room,
+      players: players.size,
+    }));
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ worlds }));
+    return;
+  }
   const rawPath = pathname === '/' ? '/index.html' : pathname;
   const safe = path.normalize(rawPath).replace(/^\.\.(\/|\\|$)+/, '');
   const filePath = path.join(ROOT, safe);

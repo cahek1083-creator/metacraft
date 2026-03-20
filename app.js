@@ -38,7 +38,10 @@ const ui = {
 
   mpName: document.getElementById('mp-name'),
   mpRoom: document.getElementById('mp-room'),
+  mpWorldList: document.getElementById('mp-world-list'),
+  mpWorldEmpty: document.getElementById('mp-world-empty'),
   btnJoinMp: document.getElementById('btn-join-mp'),
+  btnRefreshMp: document.getElementById('btn-refresh-mp'),
   btnMpBack: document.getElementById('btn-mp-back'),
 };
 
@@ -61,6 +64,11 @@ const state = {
     clearRemotes: null,
   },
 };
+
+if (state.worlds.length > 1) {
+  state.worlds = [state.worlds[0]];
+  saveWorlds();
+}
 
 function loadWorlds() {
   try {
@@ -113,8 +121,36 @@ function renderWorldList() {
     ui.worldList.appendChild(li);
   }
 
+  const hasWorld = Boolean(state.worlds[0]);
   ui.btnPlayWorld.disabled = !state.selectedWorldId;
-  ui.btnDeleteWorld.disabled = !state.selectedWorldId;
+  ui.btnDeleteWorld.disabled = true;
+  ui.btnCreateWorld.disabled = hasWorld;
+}
+
+function renderMpWorlds(worlds) {
+  ui.mpWorldList.innerHTML = '';
+  const safe = Array.isArray(worlds) ? worlds : [];
+  ui.mpWorldEmpty.classList.toggle('hidden', safe.length !== 0);
+  for (const world of safe) {
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${world.room}</strong><br><small>players: ${world.players}</small>`;
+    li.addEventListener('click', () => {
+      ui.mpRoom.value = world.room;
+    });
+    ui.mpWorldList.appendChild(li);
+  }
+}
+
+async function refreshMpWorlds() {
+  try {
+    const response = await fetch('/api/worlds');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    renderMpWorlds(payload.worlds || []);
+  } catch (error) {
+    console.warn('Failed to load multiplayer worlds', error);
+    renderMpWorlds([]);
+  }
 }
 
 ui.sensitivity.addEventListener('input', () => {
@@ -122,8 +158,12 @@ ui.sensitivity.addEventListener('input', () => {
 });
 
 ui.btnSingle.addEventListener('click', () => {
+  if (state.worlds[0]) {
+    state.selectedWorldId = state.worlds[0].id;
+    ui.btnPlayWorld.click();
+    return;
+  }
   showScreen('single');
-  if (!state.selectedWorldId && state.worlds[0]) state.selectedWorldId = state.worlds[0].id;
   renderWorldList();
 });
 
@@ -133,6 +173,11 @@ ui.btnCreateWorld.addEventListener('click', () => showScreen('create'));
 ui.btnCreateBack.addEventListener('click', () => showScreen('single'));
 
 ui.btnConfirmCreate.addEventListener('click', () => {
+  if (state.worlds[0]) {
+    alert('Мир уже создан. Доступен только один мир.');
+    showScreen('single');
+    return;
+  }
   const world = {
     id: createId(),
     name: ui.worldName.value.trim() || 'New World',
@@ -159,9 +204,13 @@ ui.btnDeleteWorld.addEventListener('click', () => {
 
 ui.btnOptions.addEventListener('click', () => showScreen('options'));
 ui.btnCloseOptions.addEventListener('click', () => showScreen('main'));
-ui.btnMulti.addEventListener('click', () => showScreen('multi'));
+ui.btnMulti.addEventListener('click', async () => {
+  showScreen('multi');
+  await refreshMpWorlds();
+});
 ui.btnRealms.addEventListener('click', () => alert('Minecraft Realms пока не реализован в этом прототипе.'));
 ui.btnQuit.addEventListener('click', () => alert('В браузере закрой вкладку вручную.'));
+ui.btnRefreshMp.addEventListener('click', refreshMpWorlds);
 
 ui.btnJoinMp.addEventListener('click', async () => {
   const name = (ui.mpName.value || '').trim() || 'Player';
@@ -366,19 +415,42 @@ async function initEngine() {
   };
 
   const BLOCKS = [
-    { id: 'grass', label: 'Grass', color: 0x66bb4f },
-    { id: 'dirt', label: 'Dirt', color: 0x7a5330 },
-    { id: 'stone', label: 'Stone', color: 0x8a8a8a },
-    { id: 'sand', label: 'Sand', color: 0xded195 },
-    { id: 'water', label: 'Water', color: 0x3d77d8, transparent: true, opacity: 0.72 },
-    { id: 'wood', label: 'Oak Log', color: 0x8d6a43 },
-    { id: 'leaves', label: 'Leaves', color: 0x4f8d45 },
-    { id: 'planks', label: 'Planks', color: 0xb89061 },
-    { id: 'glass', label: 'Glass', color: 0xb9dbff, transparent: true, opacity: 0.35 },
-    { id: 'bricks', label: 'Bricks', color: 0x994a3f },
+    { id: 'grass', label: 'Grass', color: 0x66bb4f, texture: 'textures/grass.png' },
+    { id: 'dirt', label: 'Dirt', color: 0x7a5330, texture: 'textures/dirt.png' },
+    { id: 'stone', label: 'Stone', color: 0x8a8a8a, texture: 'textures/stone.png' },
+    { id: 'sand', label: 'Sand', color: 0xded195, texture: 'textures/sand.png' },
+    { id: 'water', label: 'Water', color: 0x3d77d8, transparent: true, opacity: 0.72, texture: 'textures/water.png' },
+    { id: 'wood', label: 'Oak Log', color: 0x8d6a43, texture: 'textures/wood.png' },
+    { id: 'leaves', label: 'Leaves', color: 0x4f8d45, texture: 'textures/leaves.png' },
+    { id: 'planks', label: 'Planks', color: 0xb89061, texture: 'textures/planks.png' },
+    { id: 'glass', label: 'Glass', color: 0xb9dbff, transparent: true, opacity: 0.35, texture: 'textures/glass.png' },
+    { id: 'bricks', label: 'Bricks', color: 0x994a3f, texture: 'textures/bricks.png' },
   ];
 
-  const materials = Object.fromEntries(BLOCKS.map((b) => [b.id, new THREE.MeshLambertMaterial({ color: b.color, transparent: Boolean(b.transparent), opacity: b.opacity ?? 1 })]));
+  const textureLoader = new THREE.TextureLoader();
+  const loadBlockMaterial = async (block) => {
+    const fallback = new THREE.MeshLambertMaterial({
+      color: block.color,
+      transparent: Boolean(block.transparent),
+      opacity: block.opacity ?? 1,
+    });
+    if (!block.texture) return fallback;
+    try {
+      const texture = await textureLoader.loadAsync(block.texture);
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      return new THREE.MeshLambertMaterial({
+        map: texture,
+        color: 0xffffff,
+        transparent: Boolean(block.transparent),
+        opacity: block.opacity ?? 1,
+      });
+    } catch {
+      return fallback;
+    }
+  };
+  const materialEntries = await Promise.all(BLOCKS.map(async (b) => [b.id, await loadBlockMaterial(b)]));
+  const materials = Object.fromEntries(materialEntries);
   const blockGeom = new THREE.BoxGeometry(1, 1, 1);
   const blocks = new Map();
 

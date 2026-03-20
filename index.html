@@ -59,8 +59,14 @@
         <label>Player Name <input id="mp-name" type="text" maxlength="16" value="Player" /></label>
         <label>Room <input id="mp-room" type="text" maxlength="24" value="default" /></label>
         <p class="muted">Server: ws://localhost:8080</p>
+        <h3>Active Worlds</h3>
+        <ul id="mp-world-list" class="world-list"></ul>
+        <p id="mp-world-empty" class="muted">Ничего нет</p>
         <div class="menu-row">
           <button id="btn-join-mp" type="button">Join World</button>
+          <button id="btn-refresh-mp" type="button">Refresh</button>
+        </div>
+        <div class="menu-row">
           <button id="btn-mp-back" type="button">Cancel</button>
         </div>
       </section>

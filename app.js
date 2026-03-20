@@ -211,7 +211,7 @@ ui.btnPlayWorld.addEventListener('click', async () => {
     state.startSession?.();
   } catch (error) {
     console.error(error);
-    alert('Не удалось запустить 3D-сцену. Открой через http:// и проверь доступ к CDN.');
+    alert(`Не удалось запустить 3D-сцену: ${error.message}`);
   } finally {
     ui.btnPlayWorld.disabled = false;
     ui.btnPlayWorld.textContent = 'Play Selected World';
@@ -283,10 +283,31 @@ async function connectMultiplayer(playerName, room) {
 }
 
 async function initEngine() {
-  const [THREE, { PointerLockControls }] = await Promise.all([
-    import('https://unpkg.com/three@0.164.1/build/three.module.js'),
-    import('https://unpkg.com/three@0.164.1/examples/jsm/controls/PointerLockControls.js'),
-  ]);
+  const sources = [
+    'https://unpkg.com/three@0.164.1',
+    'https://cdn.jsdelivr.net/npm/three@0.164.1',
+  ];
+
+  let THREE;
+  let PointerLockControls;
+  let lastError = null;
+  for (const base of sources) {
+    try {
+      const [threeMod, controlsMod] = await Promise.all([
+        import(`${base}/build/three.module.js`),
+        import(`${base}/examples/jsm/controls/PointerLockControls.js`),
+      ]);
+      THREE = threeMod;
+      PointerLockControls = controlsMod.PointerLockControls;
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!THREE || !PointerLockControls) {
+    throw new Error(`Three.js CDN недоступен (${lastError?.message || 'unknown error'}). Проверь интернет или сетевые ограничения.`);
+  }
 
   const canvas = document.getElementById('game');
   const scene = new THREE.Scene();

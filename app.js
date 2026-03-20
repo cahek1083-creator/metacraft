@@ -38,12 +38,16 @@ const ui = {
 
   mpName: document.getElementById('mp-name'),
   mpRoom: document.getElementById('mp-room'),
+  mpServerUrl: document.getElementById('mp-server-url'),
   mpWorldList: document.getElementById('mp-world-list'),
   mpWorldEmpty: document.getElementById('mp-world-empty'),
   btnJoinMp: document.getElementById('btn-join-mp'),
   btnRefreshMp: document.getElementById('btn-refresh-mp'),
   btnMpBack: document.getElementById('btn-mp-back'),
 };
+
+const MP_WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`;
+ui.mpServerUrl.textContent = MP_WS_URL;
 
 const state = {
   sensitivity: 1,
@@ -236,7 +240,7 @@ ui.btnJoinMp.addEventListener('click', async () => {
     state.startSession?.();
   } catch (error) {
     console.error(error);
-    alert('Не удалось подключиться к localhost multiplayer. Запусти: npm install && npm run serve');
+    alert(`Не удалось подключиться к multiplayer (${MP_WS_URL}). Проверь, что сервер запущен: npm install && npm run serve`);
   } finally {
     ui.btnJoinMp.disabled = false;
     ui.btnJoinMp.textContent = 'Join World';
@@ -275,7 +279,7 @@ async function connectMultiplayer(playerName, room) {
   }
 
   await new Promise((resolve, reject) => {
-    const socket = new WebSocket('ws://localhost:8080');
+    const socket = new WebSocket(MP_WS_URL);
     let settled = false;
 
     const fail = (error) => {
@@ -332,6 +336,12 @@ async function connectMultiplayer(playerName, room) {
 }
 
 async function initEngine() {
+  const probeCanvas = document.createElement('canvas');
+  const hasWebGL = Boolean(probeCanvas.getContext('webgl') || probeCanvas.getContext('experimental-webgl'));
+  if (!hasWebGL) {
+    throw new Error('WebGL недоступен в браузере/устройстве.');
+  }
+
   const sources = [
     {
       three: 'https://esm.sh/three@0.164.1',
@@ -428,9 +438,28 @@ async function initEngine() {
   ];
 
   const textureLoader = new THREE.TextureLoader();
+  const makeProceduralTexture = (color) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 16;
+    canvas.height = 16;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    ctx.fillRect(0, 0, 16, 16);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    for (let i = 0; i < 16; i += 4) {
+      ctx.fillRect(i, 0, 1, 16);
+      ctx.fillRect(0, i, 16, 1);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    return texture;
+  };
   const loadBlockMaterial = async (block) => {
+    const fallbackTexture = makeProceduralTexture(block.color);
     const fallback = new THREE.MeshLambertMaterial({
-      color: block.color,
+      map: fallbackTexture,
+      color: 0xffffff,
       transparent: Boolean(block.transparent),
       opacity: block.opacity ?? 1,
     });
@@ -453,6 +482,7 @@ async function initEngine() {
   const materials = Object.fromEntries(materialEntries);
   const blockGeom = new THREE.BoxGeometry(1, 1, 1);
   const blocks = new Map();
+  const blockTypes = new Map();
 
   const key = (x, y, z) => `${x},${y},${z}`;
   const addBlock = (x, y, z, blockId) => {
@@ -462,18 +492,26 @@ async function initEngine() {
     mesh.position.set(x, y, z);
     scene.add(mesh);
     blocks.set(k, mesh);
+    blockTypes.set(k, blockId);
   };
   const removeBlock = (x, y, z) => {
-    const mesh = blocks.get(key(x, y, z));
+    const k = key(x, y, z);
+    const mesh = blocks.get(k);
     if (!mesh) return;
     scene.remove(mesh);
-    blocks.delete(key(x, y, z));
+    blocks.delete(k);
+    blockTypes.delete(k);
+  };
+  const isSolidAt = (x, y, z) => {
+    const id = blockTypes.get(key(Math.round(x), Math.round(y), Math.round(z)));
+    if (!id) return false;
+    return id !== 'water';
   };
 
   const terrainHeight = (x, z) => Math.floor(Math.sin(x * 0.12) * 3 + Math.cos(z * 0.09) * 4 + Math.sin((x + z) * 0.04) * 3);
 
   const generateTerrain = () => {
-    const radius = 55;
+    const radius = 28;
     for (let x = -radius; x <= radius; x++) {
       for (let z = -radius; z <= radius; z++) {
         const h = terrainHeight(x, z);
@@ -537,7 +575,7 @@ async function initEngine() {
   };
 
   generateTerrain();
-  for (let i = 0; i < 24; i++) addTree(Math.floor(Math.random() * 90 - 45), Math.floor(Math.random() * 90 - 45));
+  for (let i = 0; i < 10; i++) addTree(Math.floor(Math.random() * 46 - 23), Math.floor(Math.random() * 46 - 23));
   addHouse(18, 12);
   addTower(-20, -18);
 
@@ -593,9 +631,16 @@ async function initEngine() {
       direction.x = Number(pressed.has('KeyD')) - Number(pressed.has('KeyA'));
       direction.y = Number(pressed.has('Space')) - Number(pressed.has('ShiftLeft') || pressed.has('ShiftRight'));
       if (direction.lengthSq() > 0) direction.normalize();
+      const prev = camera.position.clone();
       controls.moveRight(direction.x * speed * dt);
       controls.moveForward(direction.z * speed * dt);
       camera.position.y += direction.y * speed * dt;
+
+      const headBlocked = isSolidAt(camera.position.x, camera.position.y, camera.position.z);
+      const bodyBlocked = isSolidAt(camera.position.x, camera.position.y - 1, camera.position.z);
+      if (headBlocked || bodyBlocked) {
+        camera.position.copy(prev);
+      }
     }
     if (state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN && syncElapsed > 0.08) {
       syncElapsed = 0;

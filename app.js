@@ -165,12 +165,8 @@ ui.sensitivity.addEventListener('input', () => {
 });
 
 ui.btnSingle.addEventListener('click', () => {
-  if (state.worlds[0]) {
-    state.selectedWorldId = state.worlds[0].id;
-    ui.btnPlayWorld.click();
-    return;
-  }
   showScreen('single');
+  if (!state.selectedWorldId && state.worlds[0]) state.selectedWorldId = state.worlds[0].id;
   renderWorldList();
 });
 
@@ -703,10 +699,12 @@ async function initEngine() {
     }
   };
 
-  ensureChunksAround(0, 0, 3);
-  for (let i = 0; i < 24; i++) {
-    const tx = Math.floor(Math.random() * 74 - 37);
-    const tz = Math.floor(Math.random() * 74 - 37);
+  let lastChunkX = null;
+  let lastChunkZ = null;
+  ensureChunksAround(0, 0, 1);
+  for (let i = 0; i < 8; i++) {
+    const tx = Math.floor(Math.random() * 48 - 24);
+    const tz = Math.floor(Math.random() * 48 - 24);
     if (biomeAt(tx, tz) !== 'desert') addTree(tx, tz, Math.random() > 0.74);
   }
   addHouse(18, 12);
@@ -775,7 +773,13 @@ async function initEngine() {
       if (headBlocked || bodyBlocked) {
         camera.position.copy(prev);
       }
-      ensureChunksAround(camera.position.x, camera.position.z, 2);
+      const ccx = Math.floor(camera.position.x / CHUNK_SIZE);
+      const ccz = Math.floor(camera.position.z / CHUNK_SIZE);
+      if (ccx !== lastChunkX || ccz !== lastChunkZ) {
+        lastChunkX = ccx;
+        lastChunkZ = ccz;
+        ensureChunksAround(camera.position.x, camera.position.z, 1);
+      }
     }
     if (state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN && syncElapsed > 0.08) {
       syncElapsed = 0;

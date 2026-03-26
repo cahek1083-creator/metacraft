@@ -58,6 +58,7 @@ const state = {
   startSession: null,
   stopSession: null,
   setSpawn: null,
+  pendingSeed: 'default',
   multiplayer: {
     socket: null,
     connected: false,
@@ -66,6 +67,8 @@ const state = {
     remotePlayers: new Map(),
     sendPosition: null,
     clearRemotes: null,
+    applyRemoteBlock: null,
+    pendingEdits: [],
   },
 };
 
@@ -223,6 +226,7 @@ ui.btnJoinMp.addEventListener('click', async () => {
   ui.btnJoinMp.disabled = true;
   ui.btnJoinMp.textContent = 'Connecting...';
   try {
+    state.pendingSeed = world.seed || world.name || 'default';
     await connectMultiplayer(name, room);
     const world = state.worlds[0] ?? {
       id: 'mp-local',
@@ -255,6 +259,7 @@ ui.btnPlayWorld.addEventListener('click', async () => {
   ui.btnPlayWorld.textContent = state.engineReady ? 'Loading world...' : 'Preparing engine...';
 
   try {
+    state.pendingSeed = world.seed || world.name || 'default';
     if (!state.engineReady) {
       await initEngine();
       state.engineReady = true;
@@ -323,6 +328,13 @@ async function connectMultiplayer(playerName, room) {
         const mesh = state.multiplayer.remotePlayers.get(msg.id);
         mesh.parent?.remove(mesh);
         state.multiplayer.remotePlayers.delete(msg.id);
+      }
+      if ((msg.type === 'world_state' || msg.type === 'block_set' || msg.type === 'block_remove')) {
+        if (state.multiplayer.applyRemoteBlock) {
+          state.multiplayer.applyRemoteBlock(msg);
+        } else {
+          state.multiplayer.pendingEdits.push(msg);
+        }
       }
     });
 
@@ -485,7 +497,7 @@ async function initEngine() {
   const blockTypes = new Map();
 
   const key = (x, y, z) => `${x},${y},${z}`;
-  const addBlock = (x, y, z, blockId) => {
+  const addBlock = (x, y, z, blockId, broadcast = false) => {
     const k = key(x, y, z);
     if (blocks.has(k)) return;
     const mesh = new THREE.Mesh(blockGeom, materials[blockId] ?? materials.grass);
@@ -493,23 +505,56 @@ async function initEngine() {
     scene.add(mesh);
     blocks.set(k, mesh);
     blockTypes.set(k, blockId);
+    if (broadcast && state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN) {
+      state.multiplayer.socket.send(JSON.stringify({
+        type: 'block_set',
+        room: state.multiplayer.room,
+        x,
+        y,
+        z,
+        blockId,
+      }));
+    }
   };
-  const removeBlock = (x, y, z) => {
+  const removeBlock = (x, y, z, broadcast = false) => {
     const k = key(x, y, z);
     const mesh = blocks.get(k);
     if (!mesh) return;
     scene.remove(mesh);
     blocks.delete(k);
     blockTypes.delete(k);
+    if (broadcast && state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN) {
+      state.multiplayer.socket.send(JSON.stringify({
+        type: 'block_remove',
+        room: state.multiplayer.room,
+        x,
+        y,
+        z,
+      }));
+    }
   };
   const isSolidAt = (x, y, z) => {
     const id = blockTypes.get(key(Math.round(x), Math.round(y), Math.round(z)));
     if (!id) return false;
     return id !== 'water';
   };
+  state.multiplayer.applyRemoteBlock = (msg) => {
+    if (msg.type === 'world_state' && Array.isArray(msg.blocks)) {
+      for (const b of msg.blocks) addBlock(b.x, b.y, b.z, b.blockId, false);
+      return;
+    }
+    if (msg.type === 'block_set') addBlock(msg.x, msg.y, msg.z, msg.blockId, false);
+    if (msg.type === 'block_remove') removeBlock(msg.x, msg.y, msg.z, false);
+  };
+  if (state.multiplayer.pendingEdits.length) {
+    for (const msg of state.multiplayer.pendingEdits) state.multiplayer.applyRemoteBlock(msg);
+    state.multiplayer.pendingEdits = [];
+  }
 
+  const seedString = String(state.pendingSeed || 'default');
+  const seedHash = Array.from(seedString).reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 1000003, 7);
   const hash = (x, z, s = 1337) => {
-    const v = Math.sin(x * 127.1 + z * 311.7 + s * 0.01) * 43758.5453123;
+    const v = Math.sin(x * 127.1 + z * 311.7 + (s + seedHash) * 0.01) * 43758.5453123;
     return v - Math.floor(v);
   };
   const smoothNoise = (x, z, scale, seed = 1337) => {
@@ -559,10 +604,18 @@ async function initEngine() {
     return null;
   };
 
-  const generateTerrain = () => {
-    const radius = 34;
-    for (let x = -radius; x <= radius; x++) {
-      for (let z = -radius; z <= radius; z++) {
+  const CHUNK_SIZE = 16;
+  const generatedChunks = new Set();
+  const chunkKey = (cx, cz) => `${cx},${cz}`;
+
+  const generateChunk = (cx, cz) => {
+    const ck = chunkKey(cx, cz);
+    if (generatedChunks.has(ck)) return;
+    generatedChunks.add(ck);
+    const sx = cx * CHUNK_SIZE;
+    const sz = cz * CHUNK_SIZE;
+    for (let x = sx; x < sx + CHUNK_SIZE; x++) {
+      for (let z = sz; z < sz + CHUNK_SIZE; z++) {
         const biome = biomeAt(x, z);
         const h = terrainHeight(x, z);
         const isBeach = h <= 1 || biome === 'desert';
@@ -640,10 +693,20 @@ async function initEngine() {
     }
   };
 
-  generateTerrain();
-  for (let i = 0; i < 16; i++) {
-    const tx = Math.floor(Math.random() * 58 - 29);
-    const tz = Math.floor(Math.random() * 58 - 29);
+  const ensureChunksAround = (x, z, radius = 2) => {
+    const ccx = Math.floor(x / CHUNK_SIZE);
+    const ccz = Math.floor(z / CHUNK_SIZE);
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dz = -radius; dz <= radius; dz++) {
+        generateChunk(ccx + dx, ccz + dz);
+      }
+    }
+  };
+
+  ensureChunksAround(0, 0, 3);
+  for (let i = 0; i < 24; i++) {
+    const tx = Math.floor(Math.random() * 74 - 37);
+    const tz = Math.floor(Math.random() * 74 - 37);
     if (biomeAt(tx, tz) !== 'desert') addTree(tx, tz, Math.random() > 0.74);
   }
   addHouse(18, 12);
@@ -681,8 +744,8 @@ async function initEngine() {
     if (!controls.isLocked) return;
     const target = getTarget();
     if (!target) return;
-    if (e.button === 0) removeBlock(target.removeAt.x, target.removeAt.y, target.removeAt.z);
-    if (e.button === 2) addBlock(target.placeAt.x, target.placeAt.y, target.placeAt.z, BLOCKS[activeBlockIndex].id);
+    if (e.button === 0) removeBlock(target.removeAt.x, target.removeAt.y, target.removeAt.z, true);
+    if (e.button === 2) addBlock(target.placeAt.x, target.placeAt.y, target.placeAt.z, BLOCKS[activeBlockIndex].id, true);
   });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -712,6 +775,7 @@ async function initEngine() {
       if (headBlocked || bodyBlocked) {
         camera.position.copy(prev);
       }
+      ensureChunksAround(camera.position.x, camera.position.z, 2);
     }
     if (state.multiplayer.connected && state.multiplayer.socket?.readyState === WebSocket.OPEN && syncElapsed > 0.08) {
       syncElapsed = 0;

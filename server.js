@@ -16,16 +16,21 @@ const MIME = {
 const rooms = new Map();
 
 function roomOf(name) {
-  if (!rooms.has(name)) rooms.set(name, new Map());
+  if (!rooms.has(name)) {
+    rooms.set(name, {
+      players: new Map(),
+      blocks: new Map(),
+    });
+  }
   return rooms.get(name);
 }
 
 const server = http.createServer((req, res) => {
   const pathname = new URL(req.url, `http://localhost:${PORT}`).pathname;
   if (pathname === '/api/worlds') {
-    const worlds = [...rooms.entries()].map(([room, players]) => ({
+    const worlds = [...rooms.entries()].map(([room, data]) => ({
       room,
-      players: players.size,
+      players: data.players.size,
     }));
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ worlds }));
@@ -53,7 +58,7 @@ function broadcast(roomName, payload, skipClient = null) {
   const room = rooms.get(roomName);
   if (!room) return;
   const data = JSON.stringify(payload);
-  for (const player of room.values()) {
+  for (const player of room.players.values()) {
     if (player.ws === skipClient) continue;
     if (player.ws.readyState === 1) player.ws.send(data);
   }
@@ -74,17 +79,19 @@ wss.on('connection', (ws) => {
     if (msg.type === 'join') {
       currentRoom = msg.room || 'default';
       const room = roomOf(currentRoom);
-      room.set(playerId, {
+      room.players.set(playerId, {
         id: playerId,
         name: msg.name || 'Player',
         ws,
         pos: { x: 0, y: 18, z: 0 },
       });
 
-      const peers = [...room.values()]
+      const peers = [...room.players.values()]
         .filter((p) => p.id !== playerId)
         .map((p) => ({ id: p.id, name: p.name, pos: p.pos }));
       ws.send(JSON.stringify({ type: 'peers', players: peers }));
+      const blocks = [...room.blocks.values()];
+      ws.send(JSON.stringify({ type: 'world_state', blocks }));
       broadcast(currentRoom, {
         type: 'player_join',
         player: { id: playerId, name: msg.name || 'Player', pos: { x: 0, y: 18, z: 0 } },
@@ -94,10 +101,28 @@ wss.on('connection', (ws) => {
 
     if (msg.type === 'move' && currentRoom) {
       const room = rooms.get(currentRoom);
-      const me = room?.get(playerId);
+      const me = room?.players.get(playerId);
       if (!me) return;
       me.pos = msg.pos || me.pos;
       broadcast(currentRoom, { type: 'player_move', id: playerId, pos: me.pos }, ws);
+      return;
+    }
+
+    if (msg.type === 'block_set' && currentRoom) {
+      const room = rooms.get(currentRoom);
+      if (!room) return;
+      const key = `${msg.x},${msg.y},${msg.z}`;
+      room.blocks.set(key, { x: msg.x, y: msg.y, z: msg.z, blockId: msg.blockId || 'grass' });
+      broadcast(currentRoom, { type: 'block_set', x: msg.x, y: msg.y, z: msg.z, blockId: msg.blockId || 'grass' }, ws);
+      return;
+    }
+
+    if (msg.type === 'block_remove' && currentRoom) {
+      const room = rooms.get(currentRoom);
+      if (!room) return;
+      const key = `${msg.x},${msg.y},${msg.z}`;
+      room.blocks.delete(key);
+      broadcast(currentRoom, { type: 'block_remove', x: msg.x, y: msg.y, z: msg.z }, ws);
     }
   });
 
@@ -105,9 +130,9 @@ wss.on('connection', (ws) => {
     if (!currentRoom) return;
     const room = rooms.get(currentRoom);
     if (!room) return;
-    room.delete(playerId);
+    room.players.delete(playerId);
     broadcast(currentRoom, { type: 'player_leave', id: playerId });
-    if (room.size === 0) rooms.delete(currentRoom);
+    if (room.players.size === 0) rooms.delete(currentRoom);
   });
 });
 

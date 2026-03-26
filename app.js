@@ -508,29 +508,84 @@ async function initEngine() {
     return id !== 'water';
   };
 
-  const terrainHeight = (x, z) => Math.floor(Math.sin(x * 0.12) * 3 + Math.cos(z * 0.09) * 4 + Math.sin((x + z) * 0.04) * 3);
+  const hash = (x, z, s = 1337) => {
+    const v = Math.sin(x * 127.1 + z * 311.7 + s * 0.01) * 43758.5453123;
+    return v - Math.floor(v);
+  };
+  const smoothNoise = (x, z, scale, seed = 1337) => {
+    const fx = x / scale;
+    const fz = z / scale;
+    const x0 = Math.floor(fx);
+    const z0 = Math.floor(fz);
+    const x1 = x0 + 1;
+    const z1 = z0 + 1;
+    const tx = fx - x0;
+    const tz = fz - z0;
+    const a = hash(x0, z0, seed);
+    const b = hash(x1, z0, seed);
+    const c = hash(x0, z1, seed);
+    const d = hash(x1, z1, seed);
+    const i1 = a * (1 - tx) + b * tx;
+    const i2 = c * (1 - tx) + d * tx;
+    return i1 * (1 - tz) + i2 * tz;
+  };
+
+  const biomeAt = (x, z) => {
+    const b = smoothNoise(x, z, 42, 7);
+    if (b < 0.32) return 'desert';
+    if (b > 0.7) return 'mountain';
+    return 'plains';
+  };
+
+  const terrainHeight = (x, z) => {
+    const biome = biomeAt(x, z);
+    const base = smoothNoise(x, z, 28, 11) * 7 + smoothNoise(x, z, 12, 19) * 4;
+    if (biome === 'desert') return Math.floor(base * 0.8) - 1;
+    if (biome === 'mountain') return Math.floor(base * 1.8) + 4;
+    return Math.floor(base) + 1;
+  };
+
+  const isCave = (x, y, z) => {
+    if (y > 3 || y < -12) return false;
+    const n = smoothNoise(x * 1.6 + y, z * 1.6 - y, 7, 23);
+    return n > 0.68;
+  };
+
+  const pickOre = (x, y, z) => {
+    if (y > -2) return null;
+    const n = hash(x + y * 3, z - y * 5, 29);
+    if (y < -8 && n > 0.92) return 'glass';
+    if (n > 0.86) return 'bricks';
+    return null;
+  };
 
   const generateTerrain = () => {
-    const radius = 28;
+    const radius = 34;
     for (let x = -radius; x <= radius; x++) {
       for (let z = -radius; z <= radius; z++) {
+        const biome = biomeAt(x, z);
         const h = terrainHeight(x, z);
-        const isBeach = h <= 1;
-        for (let y = -8; y <= h; y++) {
+        const isBeach = h <= 1 || biome === 'desert';
+        for (let y = -12; y <= h; y++) {
+          if (isCave(x, y, z) && y < h - 1) continue;
           let id = 'dirt';
           if (y === h) id = isBeach ? 'sand' : 'grass';
           else if (y < h - 3) id = 'stone';
-          addBlock(x, y, z, id);
+          const ore = id === 'stone' ? pickOre(x, y, z) : null;
+          addBlock(x, y, z, ore || id);
         }
         if (h <= 0) for (let wy = h + 1; wy <= 1; wy++) addBlock(x, wy, z, 'water');
       }
     }
   };
 
-  const addTree = (cx, cz) => {
+  const addTree = (cx, cz, tall = false) => {
     const base = terrainHeight(cx, cz) + 1;
-    for (let y = 0; y < 5; y++) addBlock(cx, base + y, cz, 'wood');
-    for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) for (let y = 3; y <= 5; y++) {
+    const trunk = tall ? 7 : 5;
+    for (let y = 0; y < trunk; y++) addBlock(cx, base + y, cz, 'wood');
+    const leafStart = tall ? 4 : 3;
+    const leafTop = tall ? 7 : 5;
+    for (let x = -2; x <= 2; x++) for (let z = -2; z <= 2; z++) for (let y = leafStart; y <= leafTop; y++) {
       if (Math.abs(x) + Math.abs(z) <= 3) addBlock(cx + x, base + y, cz + z, 'leaves');
     }
   };
@@ -574,10 +629,26 @@ async function initEngine() {
     for (let x = -radius; x <= radius; x++) for (let z = -radius; z <= radius; z++) addBlock(cx + x, base + height, cz + z, 'planks');
   };
 
+  const addRuin = (cx, cz) => {
+    const base = terrainHeight(cx, cz) + 1;
+    for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) addBlock(cx + x, base - 1, cz + z, 'stone');
+    for (let y = 0; y < 4; y++) {
+      addBlock(cx - 3, base + y, cz - 3, 'bricks');
+      addBlock(cx + 3, base + y, cz - 3, 'bricks');
+      addBlock(cx - 3, base + y, cz + 3, 'bricks');
+      addBlock(cx + 3, base + y, cz + 3, 'bricks');
+    }
+  };
+
   generateTerrain();
-  for (let i = 0; i < 10; i++) addTree(Math.floor(Math.random() * 46 - 23), Math.floor(Math.random() * 46 - 23));
+  for (let i = 0; i < 16; i++) {
+    const tx = Math.floor(Math.random() * 58 - 29);
+    const tz = Math.floor(Math.random() * 58 - 29);
+    if (biomeAt(tx, tz) !== 'desert') addTree(tx, tz, Math.random() > 0.74);
+  }
   addHouse(18, 12);
   addTower(-20, -18);
+  addRuin(0, -8);
 
   const raycaster = new THREE.Raycaster();
   const center = new THREE.Vector2(0, 0);

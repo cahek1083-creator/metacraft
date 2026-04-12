@@ -6,10 +6,10 @@ import java.util.Arrays;
 import java.util.Optional;
 
 public enum MysticEntityType {
-    HEROBRINE("&0Herobrine", ChatColor.BLACK),
-    LUCAS("&0Lucas", ChatColor.BLACK),
-    ERROR303("&0Error303", ChatColor.BLACK),
-    NULL("&0Null", ChatColor.BLACK);
+    HEROBRINE("&fHerobrine", ChatColor.WHITE),
+    LUCAS("&fLucas", ChatColor.WHITE),
+    ERROR303("&fError303", ChatColor.WHITE),
+    NULL("&fNull", ChatColor.WHITE);
 
     private final String displayName;
     private final ChatColor color;

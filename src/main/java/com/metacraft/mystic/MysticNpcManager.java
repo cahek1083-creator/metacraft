@@ -108,7 +108,7 @@ public class MysticNpcManager {
         };
 
         Particle.DustOptions dust = new Particle.DustOptions(color, 1.1f);
-        entity.getWorld().spawnParticle(Particle.DUST, loc, 12, 0.45, 0.6, 0.45, 0.01, dust);
+        entity.getWorld().spawnParticle(Particle.REDSTONE, loc, 12, 0.45, 0.6, 0.45, 0.01, dust);
     }
 
     private void setupNpc(MysticEntityType type, LivingEntity entity) {

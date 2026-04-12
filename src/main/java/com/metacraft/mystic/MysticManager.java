@@ -133,7 +133,7 @@ public class MysticManager {
     private void runBergStyleEffects(Player player, MysticEntityType type, Location around) {
         player.sendTitle(colorize("&4&lНЕ ОБОРАЧИВАЙСЯ"), colorize("&7" + type.name() + " рядом"), 5, 25, 10);
         player.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 50, 0, false, false, false));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, false, false));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 30, 1, false, false, false));
         player.playSound(player.getLocation(), Sound.ENTITY_WARDEN_NEARBY_CLOSE, 0.8f, 0.8f);
         player.getWorld().strikeLightningEffect(around);
         player.getWorld().spawnParticle(Particle.REVERSE_PORTAL, around, 30, 0.4, 1.0, 0.4, 0.02);

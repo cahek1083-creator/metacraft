@@ -1,0 +1,15 @@
+name: MysticEntityPlugin
+version: 1.0.0
+main: com.metacraft.mystic.MysticEntityPlugin
+api-version: '1.20'
+authors: [metacraft]
+description: Атмосферный мистический плагин с ивентами в стиле городских легенд.
+commands:
+  mystic:
+    description: Управление мистическими ивентами
+    usage: /mystic <start|stop|pulse|status>
+    permission: mystic.admin
+permissions:
+  mystic.admin:
+    description: Доступ к управлению плагином
+    default: op

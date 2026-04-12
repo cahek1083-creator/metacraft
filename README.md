@@ -1,0 +1,32 @@
+# MysticEntityPlugin
+
+Плагин для Paper/Spigot-серверов Minecraft (1.20.4), добавляющий атмосферные мистические явления и NPC в стиле городских легенд (Herobrine, Lucas, Error303, Null).
+
+## Возможности
+- Команда `/mystic start|stop|status`
+- Команда `/mystic pulse [entity]` для ручного запуска явления
+- Команда `/mystic npc spawn <entity> [count]` и `/mystic npc clear`
+- Команда `/mystic lore <entity>` — краткая справка и ссылка на источник из интернета
+- Команда `/mystic berg <on|off|status>` — режим хоррор-сценариев «как в мистических роликах»
+- Случайные «импульсы» по таймеру: частицы, звуки, сообщения и временные NPC
+- В Berg-режиме добавляются титры, фейковые server-аномалии (join/left/chat), затемнение и молнии-эффекты
+- У NPC есть собственная визуальная аура (SOUL/SMOKE/DUST), чтобы игрок сразу понимал, что это мистическое событие плагина
+- Настраиваемые сущности и сообщения через `config.yml`
+- Частоту событий и длительность присутствия NPC можно менять параметрами `pulse-interval-ticks` и `npc-lifetime-ticks`
+
+## Сборка (рекомендуется через Maven Wrapper)
+Linux/macOS:
+```bash
+./mvnw clean package
+```
+
+Windows PowerShell:
+```powershell
+.\mvnw.cmd clean package
+```
+
+Готовый jar будет в папке `target/`.
+
+## Если `mvn clean package` падает с `NoClassDefFoundError: org/slf4j/Logger`
+Это проблема локальной установки Maven (битая/неполная установка), а не кода плагина.
+Используйте wrapper-команды выше (`mvnw` / `mvnw.cmd`) — они скачивают рабочий Maven автоматически.

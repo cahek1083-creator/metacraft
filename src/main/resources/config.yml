@@ -1,6 +1,7 @@
 enabled-by-default: false
 berg-mode-enabled: true
-pulse-interval-ticks: 1200
+pulse-interval-ticks: 7200
+npc-lifetime-ticks: 1200
 entities:
   - HEROBRINE
   - LUCAS

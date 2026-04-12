@@ -92,7 +92,7 @@ public class MysticNpcManager {
                     spawnAura(living, type);
                 }
             }
-        }, 20L, 20L);
+        }, 20L, 40L);
     }
 
     private void spawnAura(LivingEntity entity, MysticEntityType type) {
@@ -119,7 +119,8 @@ public class MysticNpcManager {
         entity.setInvulnerable(true);
         entity.setCollidable(false);
         entity.setGlowing(true);
-        entity.setGravity(false);
+        entity.setGravity(true);
+        entity.setRemoveWhenFarAway(false);
 
         if (entity instanceof Mob mob) {
             mob.setAware(false);

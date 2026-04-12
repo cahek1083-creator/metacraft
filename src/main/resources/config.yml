@@ -1,10 +1,15 @@
 enabled-by-default: false
+berg-mode-enabled: true
 pulse-interval-ticks: 1200
 entities:
   - HEROBRINE
   - LUCAS
   - ERROR303
   - NULL
+berg-fake-chat-lines:
+  - "&8<%entity%> &7i see you"
+  - "&8<%entity%> &fwhere are you?"
+  - "&8<console> &cWARNING: unknown actor '%entity%'"
 messages:
   prefix: "&8[&5Mystic&8] &7"
   enabled: "&aМистические явления активированы."

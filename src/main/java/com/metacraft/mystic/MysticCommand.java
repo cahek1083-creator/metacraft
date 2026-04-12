@@ -30,7 +30,7 @@ public class MysticCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
-            sender.sendMessage("§7Использование: /mystic <start|stop|pulse|status|npc|lore>");
+            sender.sendMessage("§7Использование: /mystic <start|stop|pulse|status|npc|lore|berg>");
             return true;
         }
 
@@ -48,6 +48,7 @@ public class MysticCommand implements CommandExecutor, TabCompleter {
             case "pulse" -> handlePulse(sender, args);
             case "npc" -> handleNpc(sender, args);
             case "lore" -> handleLore(sender, args);
+            case "berg" -> handleBerg(sender, args);
             default -> sender.sendMessage("§cНеизвестная команда. Используйте /mystic status");
         }
 
@@ -135,6 +136,28 @@ public class MysticCommand implements CommandExecutor, TabCompleter {
         }, () -> sender.sendMessage(unknownEntity(args[1])));
     }
 
+
+    private void handleBerg(CommandSender sender, String[] args) {
+        if (args.length == 1 || args[1].equalsIgnoreCase("status")) {
+            sender.sendMessage(manager.isBergMode() ? "§aBerg-режим активен" : "§cBerg-режим выключен");
+            return;
+        }
+
+        if (args[1].equalsIgnoreCase("on")) {
+            manager.setBergMode(true);
+            sender.sendMessage("§aBerg-режим включен.");
+            return;
+        }
+
+        if (args[1].equalsIgnoreCase("off")) {
+            manager.setBergMode(false);
+            sender.sendMessage("§cBerg-режим выключен.");
+            return;
+        }
+
+        sender.sendMessage("§7Использование: /mystic berg <on|off|status>");
+    }
+
     private String unknownEntity(String arg) {
         String msg = plugin.getConfig().getString("messages.unknown-entity", "Неизвестная сущность: %entity%")
                 .replace("%entity%", arg);
@@ -144,7 +167,7 @@ public class MysticCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
-            return filter(Arrays.asList("start", "stop", "pulse", "status", "npc", "lore"), args[0]);
+            return filter(Arrays.asList("start", "stop", "pulse", "status", "npc", "lore", "berg"), args[0]);
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("pulse")) {
@@ -161,6 +184,10 @@ public class MysticCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 2 && args[0].equalsIgnoreCase("lore")) {
             return filter(entityValues(), args[1]);
+        }
+
+        if (args.length == 2 && args[0].equalsIgnoreCase("berg")) {
+            return filter(Arrays.asList("on", "off", "status"), args[1]);
         }
 
         return List.of();

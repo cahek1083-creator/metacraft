@@ -17,12 +17,14 @@ import java.util.concurrent.ThreadLocalRandom;
 public class MysticManager {
 
     private final MysticEntityPlugin plugin;
+    private final MysticNpcManager npcManager;
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
     private BukkitTask pulseTask;
     private boolean active;
 
-    public MysticManager(MysticEntityPlugin plugin) {
+    public MysticManager(MysticEntityPlugin plugin, MysticNpcManager npcManager) {
         this.plugin = plugin;
+        this.npcManager = npcManager;
     }
 
     public boolean isActive() {
@@ -46,6 +48,7 @@ public class MysticManager {
             pulseTask.cancel();
             pulseTask = null;
         }
+        npcManager.clearAllNpcs();
         broadcastConfigured("messages.disabled");
     }
 
@@ -86,6 +89,8 @@ public class MysticManager {
             player.spawnParticle(Particle.SMOKE_NORMAL, around, 25, 0.4, 0.8, 0.4, 0.01);
             player.spawnParticle(Particle.SOUL, around, 10, 0.3, 0.7, 0.3, 0.01);
             player.playSound(player.getLocation(), Sound.AMBIENT_SOUL_SAND_VALLEY_MOOD, 0.8f, 0.5f);
+
+            npcManager.spawnNpc(type, around, true, 200L);
 
             String line = plugin.getConfig().getString("messages.prefix", "")
                     + type.getColor()

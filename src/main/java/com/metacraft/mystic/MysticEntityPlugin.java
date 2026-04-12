@@ -11,9 +11,11 @@ public class MysticEntityPlugin extends JavaPlugin {
     public void onEnable() {
         saveDefaultConfig();
 
-        this.mysticManager = new MysticManager(this);
+        MysticLoreService loreService = new MysticLoreService();
+        MysticNpcManager npcManager = new MysticNpcManager(this);
+        this.mysticManager = new MysticManager(this, npcManager);
 
-        MysticCommand mysticCommand = new MysticCommand(this, mysticManager);
+        MysticCommand mysticCommand = new MysticCommand(this, mysticManager, npcManager, loreService);
         if (getCommand("mystic") != null) {
             getCommand("mystic").setExecutor(mysticCommand);
             getCommand("mystic").setTabCompleter(mysticCommand);

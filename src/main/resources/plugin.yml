@@ -7,7 +7,7 @@ description: Атмосферный мистический плагин с ив�
 commands:
   mystic:
     description: Управление мистическими ивентами
-    usage: /mystic <start|stop|pulse|status>
+    usage: /mystic <start|stop|pulse|status|npc|lore>
     permission: mystic.admin
 permissions:
   mystic.admin:

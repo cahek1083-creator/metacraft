@@ -48,7 +48,7 @@ public class MysticManager {
             pulseTask.cancel();
             pulseTask = null;
         }
-        npcManager.clearAllNpcs();
+        npcManager.shutdown();
         broadcastConfigured("messages.disabled");
     }
 
@@ -96,6 +96,10 @@ public class MysticManager {
                     + type.getColor()
                     + "Сущность замечена рядом: " + type.getDisplayName();
             player.sendMessage(colorize(line));
+
+            String pluginHint = plugin.getConfig().getString("messages.npc-spawn", "&d[МИСТИКА] Явление типа %entity% материализовано.")
+                    .replace("%entity%", type.name());
+            player.sendMessage(colorize(plugin.getConfig().getString("messages.prefix", "") + pluginHint));
 
             if (random.nextDouble() < 0.25) {
                 player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_STARE, 0.8f, 0.7f);

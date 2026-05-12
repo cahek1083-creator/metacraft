@@ -3,12 +3,14 @@
 #include <windows.h>
 
 #include "headlook.hpp"
+#include "vr_runtime.hpp"
 
 namespace fh4vr {
 
 bool InstallDx12Hooks() {
     OutputDebugStringA("[fh4_vr_mod] InstallDx12Hooks (stub)\n");
-    // TODO: initialize MinHook and patch IDXGISwapChain::Present vtable entry.
+    // TODO: initialize MinHook and patch IDXGISwapChain::Present / Present1 vtable entries.
+    OutputDebugStringA("[fh4_vr_mod] Hook target: IDXGISwapChain::Present + Present1\n");
     return true;
 }
 
@@ -23,6 +25,14 @@ void OnPresent(float hmdYawDeg, float hmdPitchDeg) {
     const HeadPose pose{hmdYawDeg, hmdPitchDeg};
     const InteriorLook look = ComputeInteriorLook(pose);
     ApplyInteriorLook(look);
+}
+
+void OnPresent1(float hmdYawDeg, float hmdPitchDeg) {
+    OnPresent(hmdYawDeg, hmdPitchDeg);
+}
+
+void OnResize(unsigned width, unsigned height) {
+    NotifyResize(width, height);
 }
 
 } // namespace fh4vr

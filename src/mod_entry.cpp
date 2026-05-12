@@ -7,6 +7,7 @@
 
 #include "dx12_hooks.hpp"
 #include "openxr_bridge.hpp"
+#include "vr_runtime.hpp"
 
 namespace fh4vr {
 namespace {
@@ -23,12 +24,20 @@ void ModThreadMain() {
         return;
     }
 
+    if (!InitializeVrRuntime()) {
+        RemoveDx12Hooks();
+        ShutdownOpenXR();
+        return;
+    }
+
     bool vrEnabled = false;
+    bool overlayEnabled = true;
     bool deleteWasDown = false;
     float demoYaw = 0.0f;
     float demoPitch = 0.0f;
 
     OutputDebugStringA("[fh4_vr_mod] Press Delete to toggle VR ON/OFF\n");
+    OutputDebugStringA("[fh4_vr_mod] Press Insert to toggle debug overlay\n");
 
     while (g_running.load()) {
         const bool deleteDown = (GetAsyncKeyState(VK_DELETE) & 0x8000) != 0;
@@ -40,24 +49,40 @@ void ModThreadMain() {
         }
         deleteWasDown = deleteDown;
 
+        const bool insertDown = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+        static bool insertWasDown = false;
+        if (insertDown && !insertWasDown) {
+            overlayEnabled = !overlayEnabled;
+        }
+        insertWasDown = insertDown;
+
+        const RuntimeStatus status = GetRuntimeStatus();
+        if (status == RuntimeStatus::RestartRequired) {
+            ShutdownVrRuntime();
+            InitializeVrRuntime();
+        }
+
         if (vrEnabled) {
-            // TODO: replace demo values with real OpenXR head pose extraction.
-            demoYaw += 1.0f;
-            if (demoYaw > 70.0f) {
-                demoYaw = -70.0f;
+            VrFrameInput frame{};
+            if (PollHmdPose(&frame)) {
+                demoYaw = frame.hmdYawDeg;
+                demoPitch = frame.hmdPitchDeg;
+                const CameraTransform camera = ConvertHmdToCamera(frame);
+                ApplyCameraTransform(camera);
+                OnPresent(demoYaw, demoPitch);
+                OnPresent1(demoYaw, demoPitch);
+                RenderStereoFrame();
             }
 
-            demoPitch += 0.5f;
-            if (demoPitch > 35.0f) {
-                demoPitch = -35.0f;
+            if (overlayEnabled) {
+                RenderDebugOverlay();
             }
-
-            OnPresent(demoYaw, demoPitch);
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(8));
     }
 
+    ShutdownVrRuntime();
     RemoveDx12Hooks();
     ShutdownOpenXR();
 }

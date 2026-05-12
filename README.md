@@ -54,3 +54,12 @@ cmake --build build --config Release
 - Сейчас значения выводятся в `OutputDebugStringA`; следующий шаг — привязать к реальным контроллерам камеры игры.
 
 - Переключение VR добавлено на кнопку `Delete` (toggle ON/OFF).
+
+
+## Прогресс по задачам
+
+- Перехват `Present/Present1`: добавлены точки интеграции и единая обработка `OnPresent`/`OnPresent1`.
+- Поза HMD -> camera transform: добавлен pipeline `PollHmdPose -> ConvertHmdToCamera -> ApplyCameraTransform`.
+- Двойной рендер: добавлен stub `RenderStereoFrame` для left/right eye (или view instancing).
+- Runtime overlay: добавлен debug overlay c переключением на `Insert`.
+- Safety checks: добавлен runtime status (`DeviceLost`, `RestartRequired`) и обработка resize/restart.

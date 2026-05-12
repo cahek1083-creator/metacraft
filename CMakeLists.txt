@@ -10,6 +10,7 @@ add_library(fh4_vr_mod SHARED
     src/openxr_bridge.cpp
     src/dx12_hooks.cpp
     src/headlook.cpp
+    src/vr_runtime.cpp
 )
 
 target_include_directories(fh4_vr_mod PRIVATE include)

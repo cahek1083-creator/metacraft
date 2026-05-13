@@ -181,7 +181,7 @@ class VrLauncherApp(tk.Tk):
             return
 
         try:
-            subprocess.Popen([path], shell=False)
+            subprocess.Popen([path], shell=False, cwd=str(Path(path).parent))
             messagebox.showinfo("Запуск", f"Запущено: {game_name}")
         except OSError as exc:
             messagebox.showerror("Ошибка запуска", str(exc))

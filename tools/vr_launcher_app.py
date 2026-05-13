@@ -9,18 +9,13 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 CONFIG_PATH = Path.home() / ".vr_launcher_profiles.json"
-
 GAME_EXECUTABLE_RULES = {
     "Forza Horizon 3": ["forzahorizon3.exe"],
     "Forza Horizon 4": ["forzahorizon4.exe"],
     "Forza Horizon 5": ["forzahorizon5.exe"],
     "Counter-Strike 2": ["cs2.exe"],
 }
-
-DEFAULT_GAMES = {
-    game: {"launch_path": "", "openxr_runtime": "System Default", "resolution_scale": "1.0", "fov": "90", "notes": ""}
-    for game in GAME_EXECUTABLE_RULES
-}
+DEFAULT_GAMES = {g: {"launch_path": "", "openxr_runtime": "System Default", "notes": ""} for g in GAME_EXECUTABLE_RULES}
 
 
 class VrLauncherApp(tk.Tk):
@@ -28,15 +23,24 @@ class VrLauncherApp(tk.Tk):
         super().__init__()
         self.title("Universal VR Launcher")
         self.geometry("980x700")
+        self.configure(bg="#0f1115")
+
+        self.style = ttk.Style(self)
+        if "vista" in self.style.theme_names():
+            self.style.theme_use("vista")
+        self.style.configure("Card.TLabelframe", background="#151922")
+        self.style.configure("Card.TLabelframe.Label", foreground="#70b7ff")
 
         self.profiles = self._load_profiles()
         self.widgets: dict[str, dict[str, tk.Entry | tk.Text | ttk.Combobox | ttk.Label]] = {}
 
-        self.overlay_visible = False
         self.mouse_hold_rmb = tk.BooleanVar(value=False)
         self.dpi_scale = tk.DoubleVar(value=35.0)
         self.prev_yaw = 0.0
         self.prev_pitch = 0.0
+
+        self.dim_window: tk.Toplevel | None = None
+        self.overlay_window: tk.Toplevel | None = None
 
         self._build_ui()
         self.bind_all('<Delete>', self.toggle_overlay)
@@ -56,12 +60,16 @@ class VrLauncherApp(tk.Tk):
         CONFIG_PATH.write_text(json.dumps(self.profiles, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _build_ui(self) -> None:
-        header = ttk.Frame(self, padding=10)
-        header.pack(fill=tk.X)
-        ttk.Label(header, text="Профили VR и мыши (Delete = показать/скрыть оверлей)", font=("Segoe UI", 12, "bold")).pack(anchor='w')
+        header = tk.Frame(self, bg="#0f1115")
+        header.pack(fill=tk.X, padx=12, pady=(12, 8))
+        tk.Label(header, text="Universal VR Launcher", fg="#ffffff", bg="#0f1115", font=("Segoe UI", 18, "bold")).pack(anchor='w')
+        tk.Label(header, text="Delete — оверлей | красивый UI + проверка exe + VR->Mouse", fg="#8fa3bf", bg="#0f1115", font=("Segoe UI", 10)).pack(anchor='w')
 
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        shell = tk.Frame(self, bg="#0f1115")
+        shell.pack(fill=tk.BOTH, expand=True, padx=12, pady=8)
+
+        self.notebook = ttk.Notebook(shell)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
 
         for game_name, profile in self.profiles.items():
             frame = ttk.Frame(self.notebook)
@@ -72,31 +80,30 @@ class VrLauncherApp(tk.Tk):
         self.notebook.add(mouse_tab, text="VR -> Mouse")
         self._build_mouse_tab(mouse_tab)
 
-        actions = ttk.Frame(self, padding=10)
-        actions.pack(fill=tk.X)
-        ttk.Button(actions, text="💾 Сохранить", command=self.save_all).pack(side=tk.LEFT)
-        ttk.Button(actions, text="▶ Запустить выбранную игру", command=self.launch_selected).pack(side=tk.LEFT, padx=8)
+        footer = tk.Frame(self, bg="#0f1115")
+        footer.pack(fill=tk.X, padx=12, pady=(0, 12))
+        ttk.Button(footer, text="💾 Сохранить", command=self.save_all).pack(side=tk.LEFT)
+        ttk.Button(footer, text="▶ Запустить выбранную игру", command=self.launch_selected).pack(side=tk.LEFT, padx=8)
 
     def _build_game_tab(self, parent: ttk.Frame, game_name: str, profile: dict):
-        form = ttk.Frame(parent, padding=12)
-        form.pack(fill=tk.BOTH, expand=True)
+        form = ttk.LabelFrame(parent, text=f"Профиль: {game_name}", style="Card.TLabelframe", padding=12)
+        form.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
         allowed = ", ".join(GAME_EXECUTABLE_RULES[game_name])
-        ttk.Label(form, text=f"Разрешенный файл запуска: {allowed}", foreground="#005a9e").grid(row=0, column=0, columnspan=2, sticky='w')
-        ttk.Label(form, text="Путь к .exe:").grid(row=1, column=0, sticky='w', pady=(8,0))
+        ttk.Label(form, text=f"Разрешенный файл запуска: {allowed}").grid(row=0, column=0, columnspan=2, sticky='w')
+        ttk.Label(form, text="Путь к .exe").grid(row=1, column=0, sticky='w', pady=(10, 0))
         launch_path = ttk.Entry(form, width=90)
         launch_path.insert(0, profile.get("launch_path", ""))
-        launch_path.grid(row=2, column=0, sticky='ew', padx=(0,8))
+        launch_path.grid(row=2, column=0, sticky='ew', padx=(0, 8))
         ttk.Button(form, text="Выбрать...", command=lambda g=game_name: self.pick_exe(g)).grid(row=2, column=1)
-        status = ttk.Label(form, text="", foreground="#666")
-        status.grid(row=3, column=0, columnspan=2, sticky='w', pady=(4,10))
-
+        status = ttk.Label(form, text="")
+        status.grid(row=3, column=0, columnspan=2, sticky='w', pady=(4, 10))
         ttk.Label(form, text="OpenXR Runtime").grid(row=4, column=0, sticky='w')
         runtime = ttk.Combobox(form, values=["System Default", "SteamVR", "Oculus", "WMR", "Vive"], state='readonly')
         runtime.set(profile.get("openxr_runtime", "System Default"))
         runtime.grid(row=5, column=0, sticky='w')
-
         ttk.Label(form, text="Заметки").grid(row=6, column=0, sticky='w', pady=(10,0))
-        notes = tk.Text(form, height=7)
+        notes = tk.Text(form, height=8, bg="#0e1320", fg="#d5e8ff", insertbackground="#ffffff", relief=tk.FLAT)
         notes.insert('1.0', profile.get("notes", ""))
         notes.grid(row=7, column=0, columnspan=2, sticky='nsew')
         form.columnconfigure(0, weight=1)
@@ -104,44 +111,62 @@ class VrLauncherApp(tk.Tk):
         return {"launch_path": launch_path, "status": status, "openxr_runtime": runtime, "notes": notes}
 
     def _build_mouse_tab(self, parent: ttk.Frame) -> None:
-        f = ttk.Frame(parent, padding=14)
-        f.pack(fill=tk.BOTH, expand=True)
+        root = ttk.LabelFrame(parent, text="VR to Mouse Overlay", style="Card.TLabelframe", padding=12)
+        root.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        ttk.Checkbutton(root, text="Всегда зажимать правую кнопку мыши", variable=self.mouse_hold_rmb, command=self._apply_rmb_state).pack(anchor='w', pady=(0,8))
+        ttk.Label(root, text="DPI / чувствительность").pack(anchor='w')
+        ttk.Scale(root, from_=5.0, to=120.0, variable=self.dpi_scale, orient='horizontal').pack(fill=tk.X, pady=(0,12))
 
-        card = ttk.LabelFrame(f, text="vR-like mouse look (без инжекта)")
-        card.pack(fill=tk.X, pady=4)
-        ttk.Checkbutton(card, text="Всегда зажимать правую кнопку мыши", variable=self.mouse_hold_rmb, command=self._apply_rmb_state).pack(anchor='w', padx=10, pady=8)
-
-        ttk.Label(card, text="DPI / чувствительность").pack(anchor='w', padx=10)
-        ttk.Scale(card, from_=5.0, to=120.0, variable=self.dpi_scale, orient='horizontal').pack(fill=tk.X, padx=10, pady=(0,8))
-        ttk.Label(card, text="Проверка: подвигай ползунки yaw/pitch — скрипт двигает мышь как free-look.").pack(anchor='w', padx=10, pady=(4,10))
-
-        sim = ttk.LabelFrame(f, text="Симуляция входа шлема")
-        sim.pack(fill=tk.X, pady=6)
+        ttk.Label(root, text="Симуляция входа шлема (для проверки mouse-look)").pack(anchor='w')
         self.yaw_var = tk.DoubleVar(value=0.0)
         self.pitch_var = tk.DoubleVar(value=0.0)
-        ttk.Label(sim, text="Yaw").grid(row=0, column=0, sticky='w', padx=10)
-        ttk.Scale(sim, from_=-90, to=90, variable=self.yaw_var, orient='horizontal', command=self._on_head_moved).grid(row=0, column=1, sticky='ew', padx=10)
-        ttk.Label(sim, text="Pitch").grid(row=1, column=0, sticky='w', padx=10)
-        ttk.Scale(sim, from_=-60, to=60, variable=self.pitch_var, orient='horizontal', command=self._on_head_moved).grid(row=1, column=1, sticky='ew', padx=10, pady=(6,8))
-        sim.columnconfigure(1, weight=1)
+        ttk.Scale(root, from_=-90, to=90, variable=self.yaw_var, orient='horizontal', command=self._on_head_moved).pack(fill=tk.X, pady=(4,8))
+        ttk.Scale(root, from_=-60, to=60, variable=self.pitch_var, orient='horizontal', command=self._on_head_moved).pack(fill=tk.X)
+
+    def _open_overlay(self):
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            return
+        self.dim_window = tk.Toplevel(self)
+        self.dim_window.overrideredirect(True)
+        self.dim_window.attributes('-topmost', True)
+        self.dim_window.attributes('-alpha', 0.35)
+        self.dim_window.configure(bg='black')
+        w = self.winfo_screenwidth()
+        h = self.winfo_screenheight()
+        self.dim_window.geometry(f"{w}x{h}+0+0")
+
+        self.overlay_window = tk.Toplevel(self)
+        self.overlay_window.title("VR Overlay")
+        self.overlay_window.attributes('-topmost', True)
+        self.overlay_window.configure(bg="#111827")
+        self.overlay_window.geometry("540x320+120+120")
+
+        frame = tk.Frame(self.overlay_window, bg="#111827")
+        frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
+        tk.Label(frame, text="VR Overlay", font=("Segoe UI", 18, "bold"), fg="#e5f3ff", bg="#111827").pack(anchor='w')
+        tk.Label(frame, text="Delete — закрыть overlay", fg="#9fb7d6", bg="#111827").pack(anchor='w', pady=(0,8))
+        ttk.Checkbutton(frame, text="Всегда зажимать ПКМ", variable=self.mouse_hold_rmb, command=self._apply_rmb_state).pack(anchor='w', pady=6)
+        ttk.Label(frame, text="DPI чувствительность").pack(anchor='w')
+        ttk.Scale(frame, from_=5.0, to=120.0, variable=self.dpi_scale, orient='horizontal').pack(fill=tk.X, pady=(4,10))
+        ttk.Button(frame, text="Закрыть", command=self._close_overlay).pack(anchor='e')
+
+    def _close_overlay(self):
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            self.overlay_window.destroy()
+        if self.dim_window and self.dim_window.winfo_exists():
+            self.dim_window.destroy()
 
     def toggle_overlay(self, _event=None):
-        self.overlay_visible = not self.overlay_visible
-        if self.overlay_visible:
-            self.deiconify()
-            self.lift()
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            self._close_overlay()
         else:
-            self.withdraw()
+            self._open_overlay()
 
     def _mouse_event(self, flags: int, dx: int = 0, dy: int = 0):
         ctypes.windll.user32.mouse_event(flags, dx, dy, 0, 0)
 
     def _apply_rmb_state(self):
-        # 0x0008 right down, 0x0010 right up
-        if self.mouse_hold_rmb.get():
-            self._mouse_event(0x0008)
-        else:
-            self._mouse_event(0x0010)
+        self._mouse_event(0x0008 if self.mouse_hold_rmb.get() else 0x0010)
 
     def _on_head_moved(self, _evt=None):
         yaw = self.yaw_var.get()
@@ -152,7 +177,6 @@ class VrLauncherApp(tk.Tk):
         self.prev_yaw = yaw
         self.prev_pitch = pitch
         if dx or dy:
-            # 0x0001 move
             self._mouse_event(0x0001, dx, dy)
 
     def _is_allowed_exe(self, game_name: str, path: str) -> bool:
@@ -165,12 +189,12 @@ class VrLauncherApp(tk.Tk):
         w = self.widgets[game_name]
         if not self._is_allowed_exe(game_name, path):
             allowed = ', '.join(GAME_EXECUTABLE_RULES[game_name])
-            w['status'].configure(text=f"❌ Разрешено только: {allowed}", foreground='#a00000')
+            w['status'].configure(text=f"❌ Разрешено только: {allowed}")
             messagebox.showerror("Неверный exe", f"Для {game_name} разрешено только: {allowed}")
             return
         w['launch_path'].delete(0, tk.END)
         w['launch_path'].insert(0, path)
-        w['status'].configure(text='✅ Файл принят', foreground='#007a00')
+        w['status'].configure(text='✅ Файл принят')
 
     def save_all(self):
         for game, w in self.widgets.items():

@@ -80,3 +80,5 @@ cmake --build build --config Release
 ```bash
 python tools/vr_launcher_app.py
 ```
+
+- В лаунчере добавлен выбор `.exe` через проводник и ограничение имени файла по игре (например, для FH4 только `forzahorizon4.exe`).

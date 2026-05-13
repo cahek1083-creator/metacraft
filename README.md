@@ -63,3 +63,20 @@ cmake --build build --config Release
 - Двойной рендер: добавлен stub `RenderStereoFrame` для left/right eye (или view instancing).
 - Runtime overlay: добавлен debug overlay c переключением на `Insert`.
 - Safety checks: добавлен runtime status (`DeviceLost`, `RestartRequired`) и обработка resize/restart.
+
+
+## Universal VR Launcher (Profiles)
+
+Добавлено отдельное приложение `tools/vr_launcher_app.py` с вкладками профилей игр (Forza Horizon 3/4/5 и Counter-Strike 2):
+
+- хранение launch-команды и VR-параметров по игре;
+- кнопка запуска выбранной игры по пользовательской команде;
+- сохранение профилей в `~/.vr_launcher_profiles.json`.
+
+> Приложение не включает инжект/обход защиты; это безопасный менеджер профилей и запусков.
+
+Запуск:
+
+```bash
+python tools/vr_launcher_app.py
+```

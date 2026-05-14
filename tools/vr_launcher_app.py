@@ -38,12 +38,13 @@ class VrLauncherApp(tk.Tk):
         self.dpi_scale = tk.DoubleVar(value=35.0)
         self.prev_yaw = 0.0
         self.prev_pitch = 0.0
+        self._delete_prev_down = False
 
         self.dim_window: tk.Toplevel | None = None
         self.overlay_window: tk.Toplevel | None = None
 
         self._build_ui()
-        self.bind_all('<Delete>', self.toggle_overlay)
+        self.after(30, self._poll_delete_hotkey)
 
     def _load_profiles(self) -> dict:
         if CONFIG_PATH.exists():
@@ -123,6 +124,13 @@ class VrLauncherApp(tk.Tk):
         ttk.Scale(root, from_=-90, to=90, variable=self.yaw_var, orient='horizontal', command=self._on_head_moved).pack(fill=tk.X, pady=(4,8))
         ttk.Scale(root, from_=-60, to=60, variable=self.pitch_var, orient='horizontal', command=self._on_head_moved).pack(fill=tk.X)
 
+    def _poll_delete_hotkey(self):
+        down = (ctypes.windll.user32.GetAsyncKeyState(0x2E) & 0x8000) != 0  # VK_DELETE
+        if down and not self._delete_prev_down:
+            self.toggle_overlay()
+        self._delete_prev_down = down
+        self.after(30, self._poll_delete_hotkey)
+
     def _open_overlay(self):
         if self.overlay_window and self.overlay_window.winfo_exists():
             return
@@ -134,12 +142,17 @@ class VrLauncherApp(tk.Tk):
         w = self.winfo_screenwidth()
         h = self.winfo_screenheight()
         self.dim_window.geometry(f"{w}x{h}+0+0")
+        self.dim_window.attributes('-disabled', True)
 
         self.overlay_window = tk.Toplevel(self)
         self.overlay_window.title("VR Overlay")
         self.overlay_window.attributes('-topmost', True)
         self.overlay_window.configure(bg="#111827")
         self.overlay_window.geometry("540x320+120+120")
+        self.overlay_window.transient(self)
+        self.overlay_window.lift()
+        self.dim_window.lower(self.overlay_window)
+        self.overlay_window.focus_force()
 
         frame = tk.Frame(self.overlay_window, bg="#111827")
         frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)

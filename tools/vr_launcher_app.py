@@ -5,6 +5,7 @@ import ctypes
 import json
 import subprocess
 import tkinter as tk
+import shutil
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -64,7 +65,7 @@ class VrLauncherApp(tk.Tk):
         header = tk.Frame(self, bg="#0f1115")
         header.pack(fill=tk.X, padx=12, pady=(12, 8))
         tk.Label(header, text="Universal VR Launcher", fg="#ffffff", bg="#0f1115", font=("Segoe UI", 18, "bold")).pack(anchor='w')
-        tk.Label(header, text="Delete — оверлей | красивый UI + проверка exe + VR->Mouse", fg="#8fa3bf", bg="#0f1115", font=("Segoe UI", 10)).pack(anchor='w')
+        tk.Label(header, text="Delete — оверлей | автозапуск OpenXR runtime + проверка exe + VR->Mouse", fg="#8fa3bf", bg="#0f1115", font=("Segoe UI", 10)).pack(anchor='w')
 
         shell = tk.Frame(self, bg="#0f1115")
         shell.pack(fill=tk.BOTH, expand=True, padx=12, pady=8)
@@ -223,6 +224,31 @@ class VrLauncherApp(tk.Tk):
         self._save_profiles()
         messagebox.showinfo('Сохранено', f'Профили сохранены: {CONFIG_PATH}')
 
+    def _ensure_runtime_started(self, runtime_name: str):
+        runtime = runtime_name.strip().lower()
+        if runtime in ('', 'system default'):
+            return
+
+        try:
+            if runtime == 'steamvr':
+                # SteamVR app id
+                subprocess.Popen(['cmd', '/c', 'start', '', 'steam://run/250820'], shell=False)
+            elif runtime == 'oculus':
+                oculus_client = Path('C:/Program Files/Oculus/Support/oculus-client/OculusClient.exe')
+                if oculus_client.exists():
+                    subprocess.Popen([str(oculus_client)], shell=False)
+                else:
+                    messagebox.showwarning('Runtime', 'Oculus runtime не найден по стандартному пути.')
+            elif runtime == 'wmr':
+                subprocess.Popen(['cmd', '/c', 'start', '', 'ms-holographic:' ], shell=False)
+            elif runtime == 'vive':
+                # Usually Vive uses SteamVR runtime.
+                subprocess.Popen(['cmd', '/c', 'start', '', 'steam://run/250820'], shell=False)
+            else:
+                messagebox.showwarning('Runtime', f'Неизвестный runtime: {runtime_name}')
+        except OSError as exc:
+            messagebox.showwarning('Runtime', f'Не удалось открыть runtime {runtime_name}: {exc}')
+
     def launch_selected(self):
         game = self.notebook.tab(self.notebook.select(), 'text')
         if game not in self.widgets:
@@ -234,6 +260,9 @@ class VrLauncherApp(tk.Tk):
         if not self._is_allowed_exe(game, path):
             messagebox.showerror('Неверный exe', f'Для {game} неверный exe.')
             return
+        runtime = self.widgets[game]['openxr_runtime'].get()
+        self._ensure_runtime_started(runtime)
+
         try:
             subprocess.Popen([path], shell=False, cwd=str(Path(path).parent))
             messagebox.showinfo('Запуск', f'Запущено: {game}')

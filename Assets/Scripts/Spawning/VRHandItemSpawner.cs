@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Metacraft.Spawning
 {
@@ -11,7 +12,10 @@ namespace Metacraft.Spawning
     {
         [SerializeField] private Transform leftHandSpawnPoint;
         [SerializeField] private Transform rightHandSpawnPoint;
-        [SerializeField] private KeyCode keyboardFallback = KeyCode.Q;
+        [SerializeField] private InputActionProperty leftSpawnAction;
+        [SerializeField] private InputActionProperty rightSpawnAction;
+        [SerializeField] private Key editorKeyboardFallback = Key.Q;
+        [SerializeField] private bool allowKeyboardFallback = true;
 
         private ItemSpawner itemSpawner;
 
@@ -20,9 +24,31 @@ namespace Metacraft.Spawning
             itemSpawner = GetComponent<ItemSpawner>();
         }
 
+        private void OnEnable()
+        {
+            leftSpawnAction.action?.Enable();
+            rightSpawnAction.action?.Enable();
+        }
+
+        private void OnDisable()
+        {
+            leftSpawnAction.action?.Disable();
+            rightSpawnAction.action?.Disable();
+        }
+
         private void Update()
         {
-            if (Input.GetKeyDown(keyboardFallback))
+            if (leftSpawnAction.action != null && leftSpawnAction.action.WasPressedThisFrame())
+            {
+                SpawnLeftHand();
+            }
+
+            if (rightSpawnAction.action != null && rightSpawnAction.action.WasPressedThisFrame())
+            {
+                SpawnRightHand();
+            }
+
+            if (allowKeyboardFallback && Keyboard.current != null && Keyboard.current[editorKeyboardFallback].wasPressedThisFrame)
             {
                 SpawnRightHand();
             }

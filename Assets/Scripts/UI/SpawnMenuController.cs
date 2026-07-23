@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Metacraft.UI
 {
@@ -12,8 +13,9 @@ namespace Metacraft.UI
         [SerializeField] private Transform playerHead;
         [SerializeField] private float menuDistance = 1.25f;
         [SerializeField] private float menuHeightOffset = -0.15f;
-        [SerializeField] private KeyCode toggleKey = KeyCode.Y;
-        [SerializeField] private KeyCode vrYButtonFallback = KeyCode.JoystickButton3;
+        [SerializeField] private InputActionProperty toggleAction;
+        [SerializeField] private Key editorToggleKey = Key.Y;
+        [SerializeField] private bool allowKeyboardFallback = true;
         [SerializeField] private bool facePlayerOnOpen = true;
         [SerializeField] private bool startClosed = true;
 
@@ -30,12 +32,32 @@ namespace Metacraft.UI
             }
         }
 
+        private void OnEnable()
+        {
+            toggleAction.action?.Enable();
+        }
+
+        private void OnDisable()
+        {
+            toggleAction.action?.Disable();
+        }
+
         private void Update()
         {
-            if (Input.GetKeyDown(toggleKey) || Input.GetKeyDown(vrYButtonFallback))
+            if (WasTogglePressed())
             {
                 ToggleMenu();
             }
+        }
+
+        private bool WasTogglePressed()
+        {
+            if (toggleAction.action != null && toggleAction.action.WasPressedThisFrame())
+            {
+                return true;
+            }
+
+            return allowKeyboardFallback && Keyboard.current != null && Keyboard.current[editorToggleKey].wasPressedThisFrame;
         }
 
         public void ToggleMenu()

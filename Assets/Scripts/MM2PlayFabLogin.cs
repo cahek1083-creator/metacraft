@@ -1,9 +1,8 @@
-using PlayFab;
-using PlayFab.ClientModels;
 using UnityEngine;
 
 public class MM2PlayFabLogin : MonoBehaviour
 {
+    [Tooltip("Оставлено отдельным скриптом, чтобы MM2Manager не зависел от PlayFab SDK и таймер работал даже без PlayFab в проекте.")]
     public bool loginOnStart = false;
 
     private void Start()
@@ -14,22 +13,6 @@ public class MM2PlayFabLogin : MonoBehaviour
 
     public void Login()
     {
-        var request = new LoginWithCustomIDRequest
-        {
-            CustomId = SystemInfo.deviceUniqueIdentifier,
-            CreateAccount = true
-        };
-
-        PlayFabClientAPI.LoginWithCustomID(request, OnLoginSuccess, OnLoginFailure);
-    }
-
-    private void OnLoginSuccess(LoginResult result)
-    {
-        Debug.Log("✅ Успешный вход в PlayFab!");
-    }
-
-    private void OnLoginFailure(PlayFabError error)
-    {
-        Debug.LogError($"❌ Ошибка входа в PlayFab: {error.GenerateErrorReport()}");
+        Debug.Log("ℹ️ PlayFab login отключён в этой версии скрипта. Таймер, роли и скрытие intermission работают без PlayFab SDK.");
     }
 }

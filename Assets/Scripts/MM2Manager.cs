@@ -1,4 +1,5 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
 
 public class MM2Manager : MonoBehaviour
@@ -8,6 +9,11 @@ public class MM2Manager : MonoBehaviour
     [Min(1f)] public float roundDuration = 120f;
     public bool useUnscaledTime = true;
     public bool startOnPlay = true;
+
+    [Header("=== UI КАК В SimpleMM2 ===")]
+    public TMP_Text timerText;
+    public TMP_Text roleText;
+    public GameObject intermissionObject;
 
     [Header("=== ССЫЛКИ НА ДРУГИЕ MM2 СКРИПТЫ ===")]
     public MM2UIController uiController;
@@ -71,10 +77,10 @@ public class MM2Manager : MonoBehaviour
         while (true)
         {
             StartIntermission();
-            yield return RunTimer(intermissionDuration, seconds => uiController?.SetTimer($"Новый раунд через: {seconds} сек."));
+            yield return RunTimer(intermissionDuration, seconds => SetTimer($"Новый раунд через: {seconds} сек."));
 
             StartRound();
-            yield return RunTimer(roundDuration, seconds => uiController?.SetTimer($"Раунд: {seconds} сек."));
+            yield return RunTimer(roundDuration, seconds => SetTimer($"Раунд: {seconds} сек."));
         }
     }
 
@@ -83,31 +89,31 @@ public class MM2Manager : MonoBehaviour
         IsIntermission = true;
         CurrentRole = PlayerRole.Innocent;
         weaponController?.ClearWeapons();
-        uiController?.ShowIntermission(true);
-        uiController?.SetRole("Ожидание...");
+        SetIntermissionVisible(true);
+        SetRoleText("Ожидание...");
     }
 
     private void StartRound()
     {
         IsIntermission = false;
-        uiController?.ShowIntermission(false);
+        SetIntermissionVisible(false);
         AssignRandomRole();
     }
 
     private IEnumerator RunTimer(float duration, System.Action<int> onTick)
     {
-        int secondsLeft = Mathf.CeilToInt(Mathf.Max(1f, duration));
+        float timeLeft = Mathf.Max(1f, duration);
 
-        while (secondsLeft > 0)
+        while (timeLeft > 0f)
         {
-            onTick?.Invoke(secondsLeft);
+            onTick?.Invoke(Mathf.CeilToInt(timeLeft));
 
             if (useUnscaledTime)
                 yield return new WaitForSecondsRealtime(1f);
             else
                 yield return new WaitForSeconds(1f);
 
-            secondsLeft--;
+            timeLeft--;
         }
 
         onTick?.Invoke(0);
@@ -133,7 +139,7 @@ public class MM2Manager : MonoBehaviour
         }
 
         CurrentRole = (PlayerRole)roleIndex;
-        uiController?.SetRole("Роль: " + CurrentRole);
+        SetRoleText("Роль: " + CurrentRole);
 
         if (forceWeaponRefresh)
             weaponController?.GiveWeapon(CurrentRole);
@@ -144,6 +150,45 @@ public class MM2Manager : MonoBehaviour
     public PlayerRole GetCurrentRole()
     {
         return CurrentRole;
+    }
+
+    private void SetTimer(string value)
+    {
+        if (timerText != null)
+        {
+            timerText.text = value;
+            return;
+        }
+
+        if (uiController != null)
+        {
+            uiController.SetTimer(value);
+            return;
+        }
+
+        Debug.Log(value);
+    }
+
+    private void SetRoleText(string value)
+    {
+        if (roleText != null)
+        {
+            roleText.text = value;
+            return;
+        }
+
+        uiController?.SetRole(value);
+    }
+
+    private void SetIntermissionVisible(bool visible)
+    {
+        if (intermissionObject != null)
+        {
+            intermissionObject.SetActive(visible);
+            return;
+        }
+
+        uiController?.ShowIntermission(visible);
     }
 
     private void ResolveLocalComponents()
